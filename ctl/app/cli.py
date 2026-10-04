@@ -132,12 +132,19 @@ def cmd_doctor(args):
         if os.path.exists(cfgmod.INSTANCE_PATH):
             with open(cfgmod.INSTANCE_PATH) as f:
                 inst = json.load(f)
-            host = instmod.epdg_fqdn(inst["mcc"], inst["mnc"])
+            # 用 instance.json 里实际生效的 ePDG（含手动覆盖，如 3HK 的 wlan.three.com.hk）；
+            # 老版本 instance.json 可能没有该字段 → 回退按 IMSI 推导
+            host = inst.get("epdg") or instmod.epdg_fqdn(inst["mcc"], inst["mnc"])
+            manual = "（手动指定）" if inst.get("epdg") and inst["epdg"] != instmod.epdg_fqdn(inst["mcc"], inst["mnc"]) else "（按 IMSI 推导）"
             try:
-                socket.getaddrinfo(host, None)
-                ok(f"ePDG 域名可解析: {host}")
+                addr = socket.getaddrinfo(host, None)[0][4][0]
+                if addr == "127.0.0.1":
+                    bad(f"ePDG 域名解析得 127.0.0.1 哨兵值: {host} —— 运营商不走标准 DNS，"
+                        f"请在 config.yaml 的 line.epdg 手动指定地址")
+                else:
+                    ok(f"ePDG 可解析{manual}: {host} → {addr}")
             except socket.gaierror:
-                bad(f"ePDG 域名无法解析: {host}（网络/DNS 问题）")
+                bad(f"ePDG 无法解析{manual}: {host}（检查网络/DNS，或手动指定 line.epdg）")
         bark = cfg.get("bark", {})
         if bark.get("key"):
             good, detail = smsmod.bark_test(bark.get("server", "https://api.day.app"), bark["key"])
