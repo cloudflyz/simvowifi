@@ -161,6 +161,13 @@ def imeisv_from_imei(imei, imeisv="", svn="00"):
     return base14 + svn2
 
 
+def _as_bool(v) -> bool:
+    """容忍手写 instance.json 里的 yes/true/1 等形式。"""
+    if isinstance(v, str):
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    return bool(v)
+
+
 def build_context(cfg):
     mcc = str(cfg["mcc"])
     mnc = str(cfg["mnc"]).zfill(3)
@@ -206,6 +213,10 @@ def build_context(cfg):
         # family or Asterisk cannot reach the P-CSCF over the tunnel: IPv6 P-CSCF (Telus, EE)
         # -> bind [::]:5060; IPv4 P-CSCF (Vodafone UK, cp_mode=v4) -> bind 0.0.0.0:5060.
         "pcscf_is_v6": (":" in pcscf),
+        # IMS 层 IPsec sec-agree（volte_ims 端点的 sec_encryption）。多数运营商走 sec-agree，
+        # 但 3HK 不建立 IMS 层 IPsec（媒体保护由 ePDG 隧道本身 ESP 提供）——开着会导致
+        # P-CSCF 不发 RTP（RTP 超时）。默认关；需要 sec-agree 的运营商在配置里开。
+        "sec_encryption": _as_bool(cfg.get("sec_encryption", False)),
         "local_addr": cfg.get("local_addr") or container_ipv4(),
         "ike_proposals": ike.get("proposals", default_ike),
         "esp_proposals": ike.get("esp_proposals", default_esp),

@@ -51,6 +51,9 @@ def build_instance(cfg: dict, card: dict) -> dict:
         "mcc": mcc,
         "mnc": mnc,
         "imei": line.get("imei", ""),
+        # ePDG: 手动指定优先（如 3HK 的 wlan.three.com.hk —— 不走标准 3GPP DNS，
+        # 标准域名解析得 127.0.0.1 哨兵值）；留空则按 IMSI 推导标准 FQDN
+        "epdg": (line.get("epdg", "") or "").strip() or epdg_fqdn(mcc, mnc),
         "imeisv": imeisv_from_imei(line.get("imei", "")),
         "pin": line.get("pin", ""),
         "reader": f"imsi:{card['imsi']}",
@@ -92,8 +95,13 @@ def build_instance(cfg: dict, card: dict) -> dict:
         "rekey_minutes": int(line.get("rekey_minutes", 30)),
         "apn": line.get("apn", "") or "ims",
         "idr_mode": line.get("idr_mode", "") or "apn",
-        "cp_mode": line.get("cp_mode", "") or "auto",
+        # IMS PDN 地址族。3HK 必须 v4（请求 IPv6 PDN 会 EAP FAILURE）；
+        # IPv6 IMS 运营商（EE/Telus 等）用 v6，不确定时可用 auto（按 cp_mode_order 逐个尝试）
+        "cp_mode": (line.get("cp_mode", "") or "").strip() or "v4",
         "cp_mode_order": "v6,dual,v4",
+        # IMS 层 IPsec sec-agree。3HK 不建立（RTP 由隧道 ESP 保护）→ False；
+        # 需要 sec-agree 的运营商开 True（渲染为 pjsip sec_encryption=yes）
+        "sec_encryption": bool(line.get("sec_encryption", False)),
         "use_reauth_id": bool(line.get("use_reauth_id", True)),
     }
     return inst

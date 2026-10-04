@@ -8,7 +8,11 @@ line:
   smsc: ""            # 短信中心。留空 = provision 时自动读卡（EF_SMSP）
   apn: "ims"
   idr_mode: "apn"     # apn（默认）| fqdn（严格 ePDG 用）
-  cp_mode: "auto"     # auto（默认）| v6 | v4 | dual
+  cp_mode: "v4"       # v4（默认，3HK 必须 v4，IPv6 PDN 会 EAP FAILURE）| v6 | dual | auto
+  epdg: ""            # ePDG 地址。空 = 按 IMSI 推导标准 3GPP FQDN；
+                      # 3HK 不发布标准 DNS（解析得 127.0.0.1）→ 填 "wlan.three.com.hk"
+  sec_encryption: false  # IMS 层 IPsec sec-agree。3HK 不建立 IMS IPsec（RTP 由隧道
+                      # ESP 保护）→ false；需要 sec-agree 的运营商改 true
   use_reauth_id: true
   rekey_minutes: 30
   pani_country: ""    # ISO 国家码（如 CN）。留空按 MCC 自动

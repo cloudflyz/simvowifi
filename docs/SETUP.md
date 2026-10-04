@@ -41,6 +41,13 @@ $EDITOR data/config.yaml
 - `line.pin` — SIM 启用了 PIN 则必填
 - `line.msisdn` — 本机号码（选填，用于外呼主叫显示）
 
+运营商相关（默认值已适配 3HK 实测，详见 故障排查.md 的「运营商适配」）：
+- `line.epdg` — ePDG 地址。留空 = 按 IMSI 推导标准 3GPP FQDN；3HK 必须填 `wlan.three.com.hk`（不走标准 DNS）
+- `line.cp_mode` — 默认 `v4`（3HK 必须 v4，IPv6 PDN 会 EAP FAILURE）；IPv6 IMS 运营商（EE/Telus）用 `v6` 或 `auto`
+- `line.sec_encryption` — 默认 `false`（3HK 不建 IMS 层 IPsec，RTP 由隧道 ESP 保护）
+
+> 提示：`cp_mode: v4` 的部署建议在 VM/主机层面也禁用 IPv6，避免地址选择干扰。
+
 ## 读卡开通
 
 ```bash

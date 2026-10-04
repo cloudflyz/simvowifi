@@ -10,7 +10,7 @@ simvowifi 整体以 GPLv3 发布（见 LICENSE）。本文件说明各组件的�
 | `ctl/app/sim.py` | 改编自 pagecat/vowifi_gateway `control/app/sim.py` | MIT © 2026 pagecat | PC/SC 读卡（IMSI/ICCID/SMSC/PIN 状态） |
 | Asterisk (sysmocom fork)、pjproject (sysmocom fork) | [sysmocom](https://gitea.sysmocom.de/sysmocom/asterisk)（`sysmocom/20.7.0` 分支） | GPLv2（Asterisk 系） | 在 `engine/Dockerfile` 构建时从上游克隆，本仓库不包含其源码 |
 | pcsc-lite | [LudovicRousseau/PCSC](https://github.com/LudovicRousseau/PCSC) | BSD-like | engine 镜像构建时按版本 2.3.3 编译 |
-| 设计参考 | [MddIdd/mdd-sim-gateway](https://github.com/MddIdd/mdd-sim-gateway) | 见其仓库 | 多 SIM 网关的架构参考（本项目的路线图方向） |
+| 设计参考 | [MddIdd/mdd-sim-gateway](https://github.com/MddIdd/mdd-sim-gateway) | GPLv3 | 多 SIM 网关的架构参考；`engine/patches/asterisk/reauth_missing_security_server.py` 衍生自其同名补丁（在其基础上去掉 volte.registered 条件以适配 3HK） |
 
 simvowifi 新增代码（`ctl/` 控制面、`engine/bark.py`、`install.sh`、文档）同样以 GPLv3 发布。
 

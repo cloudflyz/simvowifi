@@ -24,7 +24,7 @@ sec_port_s_max=54999
 {% if pani %}
 p_access_network_info={{ pani }}
 {% endif %}
-sec_encryption=yes
+sec_encryption={{ 'yes' if sec_encryption else 'no' }}
 
 {% if pcscf %}
 [volte_ims]

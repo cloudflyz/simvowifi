@@ -46,7 +46,9 @@ def default_config() -> dict:
             "smsc": "",            # 空 = provision 时读卡（EF_SMSP）
             "apn": "ims",
             "idr_mode": "apn",     # apn | fqdn
-            "cp_mode": "auto",     # auto | v6 | v4 | dual
+            "cp_mode": "v4",       # v4 | v6 | dual | auto。3HK 必须 v4；IPv6 IMS（EE/Telus）用 v6；auto 按 cp_mode_order 逐个试
+            "epdg": "",            # ePDG 地址。空 = 按 IMSI 推导标准 3GPP FQDN。3HK 不发布标准 DNS → 填 wlan.three.com.hk
+            "sec_encryption": False,  # IMS 层 IPsec sec-agree。3HK 不建（RTP 由隧道 ESP 保护）→ False
             "use_reauth_id": True,
             "rekey_minutes": 30,
             "pani_country": "",    # 空 = 按 MCC 自动

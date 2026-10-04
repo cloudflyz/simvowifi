@@ -2,6 +2,27 @@
 
 先跑 `simvowifi doctor`，再按下表对号入座。日志：`simvowifi logs -f`。
 
+## 运营商适配实测：3HK（香港 Three）
+
+3HK 是目前唯一完整实测过的运营商，五个坑均已在本项目内置修复，记录于此供其他运营商对照：
+
+| 症状 | 原因 | 本项目对策（已内置/可配） |
+|---|---|---|
+| 隧道一直建不起来，标准 ePDG 域名解析得 `127.0.0.1` | 3HK 不通过标准 3GPP DNS 发布 ePDG（哨兵值） | `line.epdg: "wlan.three.com.hk"` 手动指定（CNAME → `wlan.datapath.three.com.hk`） |
+| IKE_AUTH 后 EAP FAILURE | 默认 `cp_mode: auto` 先请求 IPv6 PDN，3HK 不接受 | `line.cp_mode: "v4"`（已是默认）；VM/主机建议同步禁用 IPv6 |
+| IMS 注册循环报 `'401' fatal response received ... retrying in '30' seconds` | 3HK P-CSCF 的 401 不带 Security-Server 头（违反 TS 33.203），sysmocom 代码把每个 401 当 SA 协商 | 构建补丁 `reauth_missing_security_server.py`：任何无 Security-Server 的 401 直接跳过 sec-agree（需完整 docker build，overlay 无编译好的 .so） |
+| 注册成功但通话无声音（RTP Timeout） | `sec_encryption=yes` 让 Asterisk 期望 IMS 层 IPsec SA，3HK 不建立，P-CSCF 不发 RTP | `line.sec_encryption: false`（已是默认，渲染为 pjsip `sec_encryption=no`）；RTP 由隧道 ESP 本身保护 |
+| 通话/短信媒体出不去，WebRTC/SIP 无声 | swu_ike 的 `0.0.0.0/1 + 128.0.0.0/1` 把全部 IPv4 吸进隧道，发往 RFC1918 的 RTP 被丢 | `swu_ike.py` LAN-bypass 末尾新增 RFC1918 目标路由（192.168/10/172.16 → 容器网关），已内置 |
+
+3HK 参考配置（`config.yaml` 的 `line:` 段）：
+
+```yaml
+line:
+  epdg: "wlan.three.com.hk"
+  cp_mode: "v4"
+  sec_encryption: false
+```
+
 ## provision 阶段
 
 | 症状 | 原因与处理 |

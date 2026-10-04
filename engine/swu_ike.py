@@ -2319,6 +2319,16 @@ class swu():
         # DESTINATION: pin each resolver nameserver (and they're LAN/RFC1918 anyway) to the LAN gw.
         for _ns in self._resolver_nameservers_v4():
             self.exec_in_netns("route add " + _ns + "/32 gw " + gw + " 2>/dev/null")
+        # 3HK / simvowifi: with an IPv4 IMS PDN the two /1 tunnel routes also swallow
+        # container-ORIGINATED traffic to RFC1918 destinations (same reason as the resolver
+        # routes above: route lookup happens before source selection, so the `from <eth0>`
+        # rule can never match) — e.g. Asterisk sending SIP/RTP to a LAN softphone behind a
+        # published port, or any WebRTC/manager traffic to a private-address host. Pin the
+        # private ranges to the LAN gateway by DESTINATION. Connected subnets (the docker
+        # bridge's own /16+) stay more specific, so local container-to-container traffic
+        # is unaffected.
+        for _cidr in ("192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"):
+            self.exec_in_netns("route add -net " + _cidr + " gw " + gw + " 2>/dev/null")
 
     def _lan_egress_iface(self):
         """The container's outbound LAN interface (the one carrying SWU_SOURCE). Almost always eth0
