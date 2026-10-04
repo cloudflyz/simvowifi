@@ -72,6 +72,12 @@ def default_config() -> dict:
             },
         },
         "ami": {"user": "simvowifi", "secret": gen_password(), "port": 5038},
+        "webui": {
+            "enable": True,
+            "host": "0.0.0.0",   # 局域网可访问；仅本机改 127.0.0.1
+            "port": 8080,
+            "password": gen_password(),
+        },
         "ports": {
             "sip_udp": 5060, "sip_tls": 5061,
             "ami": 5038, "rtp_start": 10000, "rtp_span": 60,

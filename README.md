@@ -58,6 +58,7 @@ simvowifi linphone       # iOS 配置指引（账号/密码/服务器）
 
 ```bash
 simvowifi status            # 容器/隧道/IMS 注册/Linphone 在线
+simvowifi web               # Web 管理界面（浏览器 :8080，详见 docs/WEBUI.md）
 simvowifi logs -f           # 跟踪引擎日志
 simvowifi sms list          # 最近短信
 simvowifi sms send +8613x "你好"   # CLI 发短信

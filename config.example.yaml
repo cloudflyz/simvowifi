@@ -44,6 +44,12 @@ ami:
   secret: "自动生成"
   port: 5038
 
+webui:
+  enable: true
+  host: "0.0.0.0"     # 局域网可访问；仅本机用改 127.0.0.1
+  port: 8080
+  password: "自动生成"  # 浏览器登录密码（simvowifi web）
+
 ports:
   sip_udp: 5060
   sip_tls: 5061

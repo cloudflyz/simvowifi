@@ -439,6 +439,21 @@ def cmd_build(args):
 
 # ---------------------------------------------------------------- parser
 
+def cmd_web(args):
+    """启动 Web 管理界面（Flask）。"""
+    from . import webui
+    cfg = cfgmod.load()
+    if not cfg.get("webui", {}).get("password"):
+        bad("webui.password 未设置 —— 先 simvowifi init 或编辑 data/config.yaml")
+        return 1
+    argv = []
+    if args.host:
+        argv += ["--host", args.host]
+    if args.port:
+        argv += ["--port", str(args.port)]
+    webui.main(argv)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="simvowifi",
                                  description="SIM → VoWiFi → SIP 网关（Linphone + Bark）")
@@ -484,6 +499,11 @@ def main(argv=None):
     sub.add_parser("linphone", help="iOS Linphone 配置指引").set_defaults(func=cmd_linphone)
     sub.add_parser("info", help="线路配置摘要").set_defaults(func=cmd_info)
     sub.add_parser("build", help="构建 engine 镜像").set_defaults(func=cmd_build)
+
+    p = sub.add_parser("web", help="Web 管理界面（浏览器访问 :8080）")
+    p.add_argument("--host", default=None)
+    p.add_argument("--port", type=int, default=None)
+    p.set_defaults(func=cmd_web)
 
     args = ap.parse_args(argv)
     rc = args.func(args)

@@ -48,10 +48,19 @@ say "3/6 · 控制面 venv（复用系统 pyscard）"
 if [ ! -x .venv/bin/python ]; then
     python3 -m venv --system-site-packages .venv
 fi
-# PyYAML 走系统包（已装）；requirements 里 pyscard 由系统包提供，仅做声明
-.venv/bin/pip install --quiet --disable-pip-version-check PyYAML 2>/dev/null \
-  || warn "pip 安装 PyYAML 失败（系统包可能已可用，继续）"
+# PyYAML/Flask 走 pip（Flask 仅 WebUI 需要）；pyscard 由系统包提供，仅做声明
+.venv/bin/pip install --quiet --disable-pip-version-check PyYAML flask 2>/dev/null \
+  || warn "pip 安装 PyYAML/Flask 失败（系统包可能已可用，继续）"
 ok ".venv 就绪"
+
+# systemd 开机自启 WebUI（可选，失败不影响）
+if command -v systemctl >/dev/null 2>&1; then
+    sed "s|__REPO__|$(pwd)|g" deploy/simvowifi-web.service > /etc/systemd/system/simvowifi-web.service \
+      && systemctl daemon-reload \
+      && systemctl enable simvowifi-web 2>/dev/null \
+      && ok "WebUI 已设开机自启（systemctl start simvowifi-web 立即启动，端口 8080）" \
+      || warn "WebUI systemd 安装失败（可手动: simvowifi web）"
+fi
 
 say "4/6 · CLI 命令 /usr/local/bin/simvowifi"
 install -m 0755 bin/simvowifi /usr/local/bin/simvowifi

@@ -1,0 +1,14 @@
+[Unit]
+Description=simvowifi WebUI
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO__
+ExecStart=__REPO__/bin/simvowifi web
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
