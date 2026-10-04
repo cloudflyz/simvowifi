@@ -24,6 +24,9 @@ def load_env():
             for line in f:
                 if "=" in line:
                     k, v = line.strip().split("=", 1)
+                    # render.py 写值时会加单引号（shell source 安全），这里去掉
+                    if len(v) >= 2 and v[0] == v[-1] == "'":
+                        v = v[1:-1]
                     env[k] = v
     except Exception:
         pass

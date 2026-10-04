@@ -63,6 +63,7 @@ TIMEOUT = 8  # 秒；推送失败快速放弃，绝不挂住调用方
 def load_env(path: str | None = None) -> dict:
     # 注意：不能写成 def load_env(path=ENV_PATH) —— 默认参数在定义时求值，
     # 测试/重定向 ENV_PATH 后不生效；必须在调用时读模块全局。
+    # 值可能被 render.py 单引号包裹（shell source 安全），此处去除首尾引号。
     if path is None:
         path = ENV_PATH
     env = {}
@@ -71,6 +72,10 @@ def load_env(path: str | None = None) -> dict:
             for line in f:
                 if "=" in line:
                     k, v = line.strip().split("=", 1)
+                    if len(v) >= 2 and v[0] == v[-1] == "'":
+                        v = v[1:-1]
+                    elif len(v) >= 2 and v[0] == v[-1] == '"':
+                        v = v[1:-1]
                     env[k] = v
     except Exception:
         pass

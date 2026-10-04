@@ -275,6 +275,13 @@ def build_context(cfg):
     return ctx
 
 
+def _env_str(value) -> str:
+    """engine.env 值：始终单引号包裹，保证 entrypoint 的 shell source 安全；
+    Python 读取方（notify/bark 的 load_env）负责去除外层引号。"""
+    import shlex
+    return shlex.quote(str(value))
+
+
 def bark_env_lines(cfg) -> list:
     """simvowifi: 把 instance.json 的 bark 段展开成 engine.env 行（notify.py/bark.py 读取）。
     bark: {server, key, group, sound, level, volume, url, call_sound, call_level,
@@ -292,17 +299,17 @@ def bark_env_lines(cfg) -> list:
     else:  # 逗号列表字符串，如 "call_in,sms_in"
         names = [s.strip() for s in str(ev).split(",") if s.strip()]
     lines = [
-        f"BARK_SERVER={b.get('server', 'https://api.day.app')}",
-        f"BARK_KEY={b.get('key', '')}",
-        f"BARK_GROUP={b.get('group', 'simvowifi')}",
-        f"BARK_EVENTS={','.join(names) if names else 'call_in,sms_in,tunnel_down,registered'}",
+        f"BARK_SERVER={_env_str(b.get('server', 'https://api.day.app'))}",
+        f"BARK_KEY={_env_str(b.get('key', ''))}",
+        f"BARK_GROUP={_env_str(b.get('group', 'simvowifi'))}",
+        f"BARK_EVENTS={_env_str(','.join(names) if names else 'call_in,sms_in,tunnel_down,tunnel_up,registered')}",
         f"BARK_INCLUDE_BODY={1 if b.get('include_body', True) else 0}",
-        f"BARK_LINE_NAME={b.get('line_name', '')}",
+        f"BARK_LINE_NAME={_env_str(b.get('line_name', ''))}",
     ]
     # 通用样式覆盖（可选）
     for k in ("sound", "level", "volume", "url"):
         if b.get(k):
-            lines.append(f"BARK_{k.upper()}={b[k]}")
+            lines.append(f"BARK_{k.upper()}={_env_str(b[k])}")
     # 来电/短信专属覆盖（可选）
     if b.get("call_sound"):
         lines.append(f"BARK_CALL_SOUND={b['call_sound']}")
