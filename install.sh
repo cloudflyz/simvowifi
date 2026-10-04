@@ -48,8 +48,8 @@ say "3/6 · 控制面 venv（复用系统 pyscard）"
 if [ ! -x .venv/bin/python ]; then
     python3 -m venv --system-site-packages .venv
 fi
-# PyYAML/Flask 走 pip（Flask 仅 WebUI 需要）；pyscard 由系统包提供，仅做声明
-.venv/bin/pip install --quiet --disable-pip-version-check PyYAML flask 2>/dev/null \
+# PyYAML/Flask/pycryptodome 走 pip（pycryptodome 仅 Bark 推送加密需要）；pyscard 由系统包提供，仅做声明
+.venv/bin/pip install --quiet --disable-pip-version-check PyYAML flask pycryptodome 2>/dev/null \
   || warn "pip 安装 PyYAML/Flask 失败（系统包可能已可用，继续）"
 ok ".venv 就绪"
 

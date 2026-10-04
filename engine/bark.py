@@ -59,6 +59,62 @@ DEFAULTS = {
 
 TIMEOUT = 8  # 秒；推送失败快速放弃，绝不挂住调用方
 
+# ---------------- 推送加密（与 Bark App 『推送加密』功能对应）--------------------
+# 规格（App 源码 Model/Algorithm.swift + NotificationServiceExtension/CiphertextProcessor.swift）:
+#   - 对称密钥，用户自定义：algorithm AES128/192/256 × mode CBC/ECB/GCM × padding pkcs7
+#   - key/iv 都是 ASCII 字符串，其 UTF-8 bytes 即为密钥/IV（长度 16/24/32；iv: CBC 16 / GCM 12 字符）
+#   - 加密对象 = 推送参数的 JSON 字符串；密文 base64 后作为 ciphertext 参数发送
+#   - GCM 为 CryptoSwift .combined 布局 = ciphertext||tag(16B)
+#   - 推送可携带 iv 参数，覆盖 App 内保存的 IV → 我们每条随机 IV（语义安全）
+
+def _random_ascii(n: int) -> str:
+    import secrets
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    return "".join(secrets.choice(alphabet) for _ in range(n))
+
+
+def encrypt_params(params: dict, algorithm: str, mode: str, key: str,
+                   iv: str = "", padding: str = "pkcs7") -> dict:
+    """加密推送参数 → {ciphertext, iv?}。与 App 端 AESCryptoModel 逐字节兼容。
+    padding 仅支持 pkcs7（App 端选 noPadding 会因填充字节解密出错，需选 PKCS7）。"""
+    import base64 as _b64
+    import json as _json
+    from Crypto.Cipher import AES  # pycryptodome（镜像已内置）
+
+    keylen = {"AES128": 16, "AES192": 24, "AES256": 32}.get(algorithm)
+    if not keylen:
+        raise ValueError(f"不支持的算法 {algorithm}（仅 AES128/AES192/AES256）")
+    if mode not in ("CBC", "ECB", "GCM"):
+        raise ValueError(f"不支持的模式 {mode}（仅 CBC/ECB/GCM）")
+    kb = key.encode("utf-8")
+    if len(key) != keylen or len(kb) != keylen:
+        raise ValueError(f"{algorithm} 密钥必须是 {keylen} 位 ASCII 字符（当前 {len(key)}）")
+
+    plaintext = _json.dumps(params, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    out = {}
+    if mode == "GCM":
+        iv_s = iv or _random_ascii(12)
+        c = AES.new(kb, AES.MODE_GCM, nonce=iv_s.encode("utf-8"))
+        ct, tag = c.encrypt_and_digest(plaintext)
+        blob = ct + tag  # CryptoSwift GCM(.combined)：密文+认证标签拼接
+        out["iv"] = iv_s
+    elif mode == "CBC":
+        iv_s = iv or _random_ascii(16)
+        c = AES.new(kb, AES.MODE_CBC, iv=iv_s.encode("utf-8"))
+        blob = c.encrypt(_pkcs7_pad(plaintext))
+        out["iv"] = iv_s
+    else:  # ECB
+        c = AES.new(kb, AES.MODE_ECB)
+        blob = c.encrypt(_pkcs7_pad(plaintext))
+    out["ciphertext"] = _b64.b64encode(blob).decode("ascii")
+    # iv 参数随推送发送 → App 端以它为准解密（App 内配置的 iv 可任意）
+    return out
+
+
+def _pkcs7_pad(data: bytes, block: int = 16) -> bytes:
+    n = block - len(data) % block
+    return data + bytes([n]) * n
+
 
 def load_env(path: str | None = None) -> dict:
     # 注意：不能写成 def load_env(path=ENV_PATH) —— 默认参数在定义时求值，
@@ -84,13 +140,24 @@ def load_env(path: str | None = None) -> dict:
 
 def push(server: str, key: str, title: str, body: str, **params) -> bool:
     """POST 到 Bark 服务器。优先 JSON 接口（支持全部参数、正文转义最稳）。"""
-    if not server or not key:
-        return False
-    server = server.rstrip("/")
     payload = {"title": title, "body": body}
     for k, v in params.items():
         if v is not None and v != "":
             payload[k] = v
+    return push_payload(server, key, payload)
+
+
+def push_payload(server: str, key: str, payload: dict, encrypt: dict | None = None) -> bool:
+    """发送最终 payload；encrypt 非 None 时（含 algorithm/mode/key/iv）先整体加密。"""
+    if not server or not key:
+        return False
+    server = server.rstrip("/")
+    if encrypt:
+        try:
+            payload = encrypt_params(payload, **encrypt)
+        except Exception as e:  # noqa: BLE001
+            print(f"[bark] 加密失败（按明文发送）: {e!r}", file=sys.stderr)
+    encrypted = "ciphertext" in payload
     url = f"{server}/push"
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
@@ -100,11 +167,15 @@ def push(server: str, key: str, title: str, body: str, **params) -> bool:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             return 200 <= resp.status < 300
     except Exception as e:  # noqa: BLE001
+        if encrypted:
+            # 密文含二进制 base64，不适合 GET 路径回退，直接报错
+            print(f"[bark] push failed: {e!r}", file=sys.stderr)
+            return False
         # 回退到 GET 路径风格（老版本 bark-server 兼容）：/key/title/body?k=v
         try:
             extra = {k: v for k, v in payload.items() if k not in ("title", "body")}
             q = "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in extra.items())
-            path = f"{server}/{key}/{urllib.parse.quote(title, safe='')}/{urllib.parse.quote(body, safe='')}"
+            path = f"{server}/{key}/{urllib.parse.quote(str(payload.get('title','')), safe='')}/{urllib.parse.quote(str(payload.get('body','')), safe='')}"
             if q:
                 path += "?" + q
             with urllib.request.urlopen(path, timeout=TIMEOUT) as resp:
@@ -153,7 +224,19 @@ def notify(event: str, title: str, body: str, env: dict | None = None) -> bool:
     if line_name and event in ("call_in", "sms_in"):
         title = f"{title} · {line_name}" if title else line_name
 
-    ok = push(server, key, title, body, **style)
+    # 推送加密（BARK_ENC_KEY 非空时启用；App 端需配置相同算法/密钥）
+    encrypt = None
+    if env.get("BARK_ENC_KEY"):
+        encrypt = {
+            "algorithm": env.get("BARK_ENC_ALGORITHM", "AES128"),
+            "mode": env.get("BARK_ENC_MODE", "CBC"),
+            "key": env["BARK_ENC_KEY"],
+            "iv": env.get("BARK_ENC_IV", ""),
+        }
+
+    payload = {"title": title, "body": body}
+    payload.update({k: v for k, v in style.items() if v is not None and v != ""})
+    ok = push_payload(server, key, payload, encrypt=encrypt)
     # 本地事件日志，便于排查推送问题
     try:
         os.makedirs("/logs", exist_ok=True)

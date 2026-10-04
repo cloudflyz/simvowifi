@@ -368,7 +368,7 @@ def cmd_bark_test(args):
     if not bark.get("key"):
         bad("bark.key 未配置（Bark App → 复制 key → data/config.yaml）")
         return 1
-    good, detail = smsmod.bark_test(bark.get("server", "https://api.day.app"), bark["key"])
+    good, detail = smsmod.bark_test(bark.get("server", "https://api.day.app"), bark["key"], bark_cfg=bark)
     (ok if good else bad)(f"测试推送{'已发送' if good else '失败'}: {detail}")
 
 

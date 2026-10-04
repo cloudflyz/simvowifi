@@ -167,6 +167,7 @@ def create_app() -> Flask:
                 "imei": inst.get("imei", ""), "name": cfg.get("line", {}).get("name", ""),
             },
             bark_configured=bool(cfg.get("bark", {}).get("key")),
+            bark_encrypted=bool(((cfg.get("bark", {}) or {}).get("encrypt") or {}).get("key")),
             provisioned=bool(inst),
         )
 
@@ -214,8 +215,59 @@ def create_app() -> Flask:
         b = cfg.get("bark", {})
         if not b.get("key"):
             return jsonify(ok=False, error="bark.key 未配置"), 400
-        good, detail = smsmod.bark_test(b.get("server", "https://api.day.app"), b["key"])
+        good, detail = smsmod.bark_test(b.get("server", "https://api.day.app"), b["key"], bark_cfg=b)
         return jsonify(ok=good, detail=detail)
+
+    @app.get("/api/bark_settings")
+    def bark_settings_get():
+        b = cfgmod.load().get("bark", {}) or {}
+        enc = b.get("encrypt") or {}
+        return jsonify(
+            server=b.get("server", "https://api.day.app"),
+            key=b.get("key", ""),
+            include_body=bool(b.get("include_body", True)),
+            encrypt={
+                "algorithm": str(enc.get("algorithm", "AES128")),
+                "mode": str(enc.get("mode", "CBC")),
+                "key": str(enc.get("key", "")),
+                "iv": str(enc.get("iv", "")),
+            },
+        )
+
+    @app.post("/api/bark_settings")
+    def bark_settings_post():
+        """保存 Bark 设置（含推送加密）。校验后合并进 config.yaml 的 bark 段。"""
+        from . import barkcrypt
+        d = request.get_json(silent=True) or {}
+        enc_in = d.get("encrypt") or {}
+        enc = {
+            "algorithm": str(enc_in.get("algorithm", "AES128")).upper(),
+            "mode": str(enc_in.get("mode", "CBC")).upper(),
+            "key": str(enc_in.get("key", "")),
+            "iv": str(enc_in.get("iv", "")),
+        }
+        if enc["key"]:
+            err = barkcrypt.validate(enc["algorithm"], enc["mode"], enc["key"], enc["iv"])
+            if err:
+                return jsonify(ok=False, error=f"加密配置无效: {err}"), 400
+        else:
+            enc["iv"] = ""  # 未启用加密时 iv 无意义
+        server = str(d.get("server") or "").strip()
+        if server:
+            if not server.startswith(("http://", "https://")):
+                return jsonify(ok=False, error="server 必须以 http(s):// 开头"), 400
+
+        cfg = cfgmod.load()
+        b = cfg.setdefault("bark", {})
+        if server:  # 部分更新：未提供的字段不覆盖
+            b["server"] = server
+        if "key" in d:
+            b["key"] = str(d.get("key") or "").strip()
+        if "include_body" in d:
+            b["include_body"] = bool(d.get("include_body"))
+        b["encrypt"] = enc
+        cfgmod.save(cfg)
+        return jsonify(ok=True, note="已保存。engine 推送需重启后生效；测试推送立即按新配置发送。")
 
     # -------- 读卡器 / 开通 --------
     @app.get("/api/readers")

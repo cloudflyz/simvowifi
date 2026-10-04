@@ -37,19 +37,37 @@ def list_messages(limit: int = 20) -> list[dict]:
     return msgs[-limit:][::-1]  # 最新的在前
 
 
-def bark_test(server: str, key: str) -> tuple[bool, str]:
-    """发一条测试推送，验证 Bark 服务器与 key。"""
-    url = f"{server.rstrip('/')}/push"
-    data = json.dumps({
+def bark_test(server: str, key: str, bark_cfg: dict | None = None) -> tuple[bool, str]:
+    """发一条测试推送，验证 Bark 服务器与 key。
+    bark_cfg 传入完整 bark 配置节时，若配置了 encrypt.key 则发加密推送
+    （与 engine 实际推送同一加密管线，可验证 App 端解密配置是否正确）。"""
+    payload = {
         "title": "simvowifi 测试推送",
         "body": "✅ Bark 配置成功！来电与短信将推送到这里。",
         "group": "simvowifi",
         "sound": "bell",
-    }, ensure_ascii=False).encode()
+    }
+    enc_note = ""
+    enc = (bark_cfg or {}).get("encrypt") or {}
+    if enc.get("key"):
+        from . import barkcrypt
+        try:
+            payload = barkcrypt.encrypt_params(
+                payload,
+                algorithm=str(enc.get("algorithm", "AES128")),
+                mode=str(enc.get("mode", "CBC")),
+                key=str(enc["key"]),
+                iv=str(enc.get("iv", "")),
+            )
+            enc_note = f"（已加密: {enc.get('algorithm', 'AES128')}/{enc.get('mode', 'CBC')}）"
+        except ValueError as e:
+            return False, f"加密配置无效: {e}"
+    url = f"{server.rstrip('/')}/push"
+    data = json.dumps(payload, ensure_ascii=False).encode()
     req = urllib.request.Request(url, data=data,
                                  headers={"Content-Type": "application/json; charset=utf-8"})
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
-            return 200 <= resp.status < 300, f"HTTP {resp.status}"
+            return 200 <= resp.status < 300, f"HTTP {resp.status} {enc_note}".rstrip()
     except Exception as e:
         return False, repr(e)

@@ -20,6 +20,7 @@ systemctl enable --now simvowifi-web
 | 短信 | 收发记录（与 CLI `sms list` 同源）+ 发送框 |
 | 呼叫 | 输入号码拨出（Linphone 先振铃，接听后接通对方，同 CLI `call`） |
 | 操作 | engine 启动/重启/停止、Bark 测试推送、一键诊断（doctor） |
+| Bark 推送 | 服务器/设备 Key/**推送加密**（算法/模式/密钥，与 App 内『推送加密』一致）设置 + 发送加密测试推送 |
 | SIM 开通 | 读卡器列表 + provision（读卡 → 生成 instance.json，无需命令行） |
 | Linphone 接入 | 服务器/账号/密码/SIP URI，一键复制，手机配置不用来回查 |
 | 日志 | engine 输出 / Asterisk / IKE 隧道(charon) / 事件流 四个视图 |

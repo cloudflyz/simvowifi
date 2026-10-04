@@ -1,3 +1,4 @@
 PyYAML>=6.0
 pyscard>=2.0
 flask>=3.0
+pycryptodome>=3.19  # Bark 推送加密（AES）

@@ -326,6 +326,15 @@ def bark_env_lines(cfg) -> list:
         lines.append(f"BARK_CALL_SOUND={b['call_sound']}")
     if b.get("call_level"):
         lines.append(f"BARK_CALL_LEVEL={b['call_level']}")
+    # 推送加密（可选；encrypt.key 非空时启用，需与 Bark App『推送加密』设置一致）
+    enc = b.get("encrypt") or {}
+    if isinstance(enc, dict) and enc.get("key"):
+        lines += [
+            f"BARK_ENC_ALGORITHM={_env_str(str(enc.get('algorithm', 'AES128')))}",
+            f"BARK_ENC_MODE={_env_str(str(enc.get('mode', 'CBC')))}",
+            f"BARK_ENC_KEY={_env_str(str(enc['key']))}",
+            f"BARK_ENC_IV={_env_str(str(enc.get('iv', '')))}",
+        ]
     return lines
 
 

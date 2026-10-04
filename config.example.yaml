@@ -32,6 +32,13 @@ bark:
   call_sound: "bell"     # 来电铃声，见 bark.day.app 声音列表
   call_level: "critical" # critical=绕过静音响铃（需在 Bark App 授权重要告警）
   include_body: true     # false=短信内容不进推送（隐私）
+  # 推送加密（可选）：与 Bark App 首页『推送加密』设置一致；encrypt.key 留空=不加密
+  # App 内选 AES128/CBC/PKCS7，密钥填同样的 16 位字符；IV 可任意 16 位（推送每条随机携带）
+  encrypt:
+    algorithm: "AES128"   # AES128/AES192/AES256
+    mode: "CBC"           # CBC/ECB/GCM
+    key: ""               # 16/24/32 位 ASCII，与 App 内一致
+    iv: ""                # 留空=每条随机（推荐，随推送发送）
   events:                # 哪些事件推 Bark
     call_in: true
     sms_in: true

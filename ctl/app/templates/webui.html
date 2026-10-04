@@ -91,6 +91,33 @@ details summary{cursor:pointer;color:var(--mut);font-size:13px;padding:4px 0}
 </div>
 
 <div class="card">
+  <h2>🔔 Bark 推送 <span class="tag">服务器/密钥在 App 首页复制；加密需 App 内『推送加密』设置一致</span></h2>
+  <div class="row" style="margin-bottom:8px">
+    <input id="bkServer" class="grow" placeholder="服务器 https://api.day.app" style="min-width:200px">
+    <input id="bkKey" class="grow" placeholder="设备 Key（App 首页复制）" style="min-width:160px">
+  </div>
+  <div class="row" style="margin-bottom:8px">
+    <label style="color:var(--mut);font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="bkBody" style="width:auto"> 短信内容进推送</label>
+  </div>
+  <details>
+    <summary>🔐 推送加密（推荐：自建/公共 bark-server 时防服务器看到内容）</summary>
+    <div class="row" style="margin:8px 0">
+      <select id="bkAlgo"><option>AES128</option><option>AES192</option><option>AES256</option></select>
+      <select id="bkMode"><option>CBC</option><option>GCM</option><option>ECB</option></select>
+      <input id="bkEncKey" class="grow" placeholder="密钥 16/24/32 位 ASCII（与 App 一致，留空=不加密）" style="min-width:220px">
+    </div>
+    <div class="row">
+      <input id="bkIv" class="grow" placeholder="IV（留空=每条随机，推荐）" style="min-width:180px">
+    </div>
+    <div style="color:var(--mut);font-size:12px;margin-top:8px">App 端：首页 → 推送加密 → 选同样算法/模式，Padding 选 PKCS7，填同样密钥；IV 可任意填（推送每条随机携带）。留空加密密钥 = 关闭加密。</div>
+  </details>
+  <div class="row" style="margin-top:10px">
+    <button onclick="barkSave()">保存设置</button>
+    <button onclick="barkTest()">📱 发送测试推送</button>
+  </div>
+</div>
+
+<div class="card">
   <h2>🔧 操作</h2>
   <div class="row">
     <button onclick="lifecycle('start')">▶ 启动</button>
@@ -173,6 +200,7 @@ async function overview(){
       chip(i,'IMS '+(o.ims.state||'?'))+
       chip(o.linphone.online?'ok':'warn','Linphone '+(o.linphone.online?'在线':'离线'))+
       chip(o.bark_configured?'ok':'warn','Bark '+(o.bark_configured?'已配':'未配'))+
+      (o.bark_encrypted?chip('ok','Bark 加密'):'')+
       (o.line.msisdn?chip('','📲 '+o.line.msisdn):'');
     $('lineName').textContent=o.line.name||o.line.msisdn||'';
     $('events').innerHTML=o.events.length?o.events.map(e=>`<div class="ev"><span>${(e.time||'').slice(5,19)}</span><b>${e.event}</b><span>${e.arg||''}</span></div>`).join(''):'<span style="color:var(--mut)">—</span>';
@@ -195,7 +223,17 @@ async function callOut(){try{const r=await api('/api/call',{method:'POST',body:J
 /* ---------- 操作 ---------- */
 async function lifecycle(a){try{const r=await api('/api/lifecycle',{method:'POST',body:JSON.stringify({action:a})});
   toast((r.ok?'✓ ':'✗ ')+(r.detail||r.error||''),r.ok?'ok':'bad');setTimeout(overview,1500)}catch(e){toast(e.message,'bad')}}
-async function barkTest(){try{const r=await api('/api/bark_test',{method:'POST'});toast(r.ok?'Bark 已推送，看手机':'失败: '+r.detail,r.ok?'ok':'bad')}catch(e){toast(e.message,'bad')}}
+async function barkTest(){try{const r=await api('/api/bark_test',{method:'POST'});toast(r.ok?'推送已发送，看手机':'失败: '+(r.detail||r.error),r.ok?'ok':'bad')}catch(e){toast(e.message,'bad')}}
+
+/* ---------- Bark 设置 ---------- */
+async function barkLoad(){try{const j=await api('/api/bark_settings');
+  $('bkServer').value=j.server;$('bkKey').value=j.key;$('bkBody').checked=j.include_body;
+  $('bkAlgo').value=j.encrypt.algorithm;$('bkMode').value=j.encrypt.mode;
+  $('bkEncKey').value=j.encrypt.key;$('bkIv').value=j.encrypt.iv}catch(e){}}
+async function barkSave(){try{const r=await api('/api/bark_settings',{method:'POST',body:JSON.stringify({
+    server:$('bkServer').value.trim(),key:$('bkKey').value.trim(),include_body:$('bkBody').checked,
+    encrypt:{algorithm:$('bkAlgo').value,mode:$('bkMode').value,key:$('bkEncKey').value.trim(),iv:$('bkIv').value.trim()}})});
+  toast(r.ok?'已保存（engine 推送重启后生效；测试推送立即生效）':r.error,r.ok?'ok':'bad')}catch(e){toast(e.message,'bad')}}
 
 /* ---------- 诊断 ---------- */
 async function loadDoctor(){try{const j=await api('/api/doctor');$('doctor').innerHTML=j.items.map(i=>`<div class="it ${i.level}">${esc(i.msg)}</div>`).join('')}catch(e){toast(e.message,'bad')}}
@@ -229,7 +267,7 @@ async function cfgSave(){try{const r=await api('/api/config',{method:'POST',body
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-function boot(){overview();smsLoad();linphone();cfgLoad();loadLog();loadReaders();
+function boot(){overview();smsLoad();linphone();cfgLoad();loadLog();loadReaders();barkLoad();
   setInterval(overview,5000);}
 (async()=>{try{await api('/api/overview');$('main').style.display='block';boot()}
   catch(e){/* 401 → 登录框已显示 */}})();

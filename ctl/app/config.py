@@ -70,6 +70,8 @@ def default_config() -> dict:
                 "call_in": True, "sms_in": True,
                 "tunnel_down": True, "tunnel_up": True, "registered": True,
             },
+            # 推送加密（可选，需与 Bark App 首页『推送加密』设置完全一致；key 留空=不加密）
+            "encrypt": {"algorithm": "AES128", "mode": "CBC", "key": "", "iv": ""},
         },
         "ami": {"user": "simvowifi", "secret": gen_password(), "port": 5038},
         "webui": {

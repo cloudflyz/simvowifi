@@ -44,6 +44,34 @@ critical 级别推送需要一次性授权：
 
 不想短信内容出现在推送/锁屏：`bark.include_body: false`（推送只显示来信号码）。
 
+## 推送加密（端到端，推荐）
+
+默认推送经 bark-server 转发，服务器能看到推送内容（标题/正文/号码）。开启**推送加密**后
+内容以 AES 加密传输，bark-server 与 APNs 只见密文，仅手机能解密。
+
+与 Bark App 内置的『推送加密』功能对应（对称密钥，需两端一致）：
+
+1. **手机**: Bark App 首页 → 推送加密 → 选择算法/模式（如 AES128/CBC），Padding 选 **PKCS7**，
+   自己想一个密钥（16 位 ASCII）填入，IV 随便填 16 位（推送每条随机携带，不依赖它）。
+2. **网关**: WebUI『Bark 推送』卡片 → 勾选加密设置，填同样算法/模式/密钥（IV 留空）→ 保存 →
+   点『发送测试推送』验证；或编辑 `data/config.yaml`：
+
+```yaml
+bark:
+  encrypt:
+    algorithm: "AES128"   # AES128/AES192/AES256，与 App 一致
+    mode: "CBC"           # CBC/GCM/ECB，与 App 一致
+    key: "MySecretKey123" # 16/24/32 位 ASCII，与 App 一致
+    iv: ""                # 留空=每条随机（推荐）；固定则必须与 App 一致
+```
+
+3. `simvowifi restart` 后 engine 推送（来电/短信/隧道事件）全部走加密。
+
+技术规格（与 App 源码严格一致，可用其他工具互操作）：
+加密对象为推送参数 JSON 字符串；key/iv 取 ASCII 字符串的 UTF-8 字节；
+CBC 为 PKCS7 填充，GCM 密文布局为 `ciphertext||tag`；密文 base64 后作 `ciphertext`
+参数发送，随机 IV 随推送 `iv` 参数携带（App 端以推送携带的 IV 为准）。
+
 ## 自建 bark-server
 
 ```bash
