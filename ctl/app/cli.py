@@ -264,6 +264,10 @@ def cmd_status(args):
     color = "\033[32m" if state == "CONNECTED" else "\033[31m"
     print(f"ePDG 隧道: {color}{state}\033[0m")
     if cs["running"]:
+        ims = ops.ims_state().get("state", "unknown")
+        if ims != "unknown":
+            c = "\033[32m" if ims == "Registered" else "\033[31m"
+            print(f"IMS 注册 : {c}{ims}\033[0m （reg_watch）")
         cfg = cfgmod.load()
         from .ami import Ami
         try:
@@ -271,7 +275,7 @@ def cmd_status(args):
                      secret=cfg["ami"]["secret"]) as ami:
                 reg = ami.ims_registered()
                 c = "\033[32m" if reg == "Registered" else "\033[31m"
-                print(f"IMS 注册 : {c}{reg}\033[0m")
+                print(f"IMS 注册 : {c}{reg}\033[0m （AMI 实时）")
                 online, detail = ami.endpoint_online(cfg["sip"]["account"]["username"])
                 c = "\033[32m" if online else "\033[33m"
                 print(f"Linphone : {c}{'在线' if online else '未注册/离线'}\033[0m")

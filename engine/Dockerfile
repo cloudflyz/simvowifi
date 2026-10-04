@@ -79,6 +79,7 @@ COPY swu_ike.py      /usr/local/bin/swu_ike.py
 COPY render.py       /usr/local/bin/render.py
 COPY notify.py       /usr/local/bin/notify.py
 COPY bark.py         /usr/local/bin/bark.py
+COPY reg_watch.py    /usr/local/bin/reg_watch.py
 COPY templates/      /opt/vowifi/templates/
 COPY entrypoint.sh   /entrypoint.sh
 RUN chmod +x /usr/local/bin/*.py /entrypoint.sh

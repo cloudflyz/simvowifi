@@ -32,6 +32,7 @@ bark:
     call_in: true
     sms_in: true
     tunnel_down: true
+    tunnel_up: true
     registered: true
 
 ami:

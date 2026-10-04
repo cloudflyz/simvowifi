@@ -284,8 +284,8 @@ def bark_env_lines(cfg) -> list:
     if not isinstance(b, dict):
         b = {}
     ev = b.get("events") or {
-        "call_in": True, "sms_in": True, "tunnel_down": True, "registered": True,
-        "call_out": False, "sms_out": False, "unregistered": True,
+        "call_in": True, "sms_in": True, "tunnel_down": True, "tunnel_up": True,
+        "registered": True, "call_out": False, "sms_out": False, "unregistered": True,
     }
     if isinstance(ev, dict):
         names = [k for k, on in ev.items() if on]

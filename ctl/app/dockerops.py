@@ -86,6 +86,16 @@ def tunnel_state() -> dict:
         return {"state": "UNKNOWN"}
 
 
+def ims_state() -> dict:
+    """reg_watch.py 写的 IMS 注册状态文件（bind mount 的 run/ 目录）。"""
+    path = os.path.join(cfgmod.DATA_DIR, "run", "ims_status.json")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return {"state": "unknown"}
+
+
 def last_events(n: int = 8) -> list[dict]:
     path = os.path.join(cfgmod.DATA_DIR, "logs", "events.jsonl")
     try:

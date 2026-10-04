@@ -106,6 +106,9 @@ fi
 log "starting ami_usim bridge..."
 python3 -u /usr/local/bin/ami_usim.py /usr/local/etc/ami_usim.ini &
 
+# simvowifi: IMS 注册状态监视（写 run/ims_status.json + notify.py → Bark）
+python3 -u /usr/local/bin/reg_watch.py &
+
 # Enable the SIP message logger once Asterisk is ready (retry until it takes), so the
 # P-Associated-URI (registered MSISDN) and SIP traces are captured for the manager/Logs.
 ( for _ in $(seq 1 40); do

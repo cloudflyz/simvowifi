@@ -66,7 +66,7 @@ def default_config() -> dict:
             "include_body": True,
             "events": {
                 "call_in": True, "sms_in": True,
-                "tunnel_down": True, "registered": True,
+                "tunnel_down": True, "tunnel_up": True, "registered": True,
             },
         },
         "ami": {"user": "simvowifi", "secret": gen_password(), "port": 5038},

@@ -45,6 +45,11 @@ DEFAULTS = {
         "group": "simvowifi-status",
         "level": "timeSensitive",
     },
+    "tunnel_up": {
+        "sound": "receive",
+        "group": "simvowifi-status",
+        "level": "active",
+    },
     "registered": {
         "sound": "receive",
         "group": "simvowifi-status",
@@ -110,7 +115,7 @@ def notify(event: str, title: str, body: str, env: dict | None = None) -> bool:
     server = env.get("BARK_SERVER", "https://api.day.app")
     key = env.get("BARK_KEY", "")
     enabled = set(
-        f.strip() for f in env.get("BARK_EVENTS", "call_in,sms_in,tunnel_down,registered").split(",") if f.strip()
+        f.strip() for f in env.get("BARK_EVENTS", "call_in,sms_in,tunnel_down,tunnel_up,registered").split(",") if f.strip()
     )
     if not key:
         return False

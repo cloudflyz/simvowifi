@@ -53,6 +53,9 @@ def bark_dispatch(event, args, env):
         elif event == "tunnel_down":
             title = "\u26A0\uFE0F simvowifi 隧道断开"
             body = "ePDG 隧道已断开，引擎将自动重连"
+        elif event == "tunnel_up":
+            title = "\U0001F517 simvowifi 隧道已建立"
+            body = "ePDG 隧道连上，正在向 IMS 注册…"
         elif event == "registered":
             title = "\u2705 simvowifi IMS 已注册"
             body = "线路已就绪，可以接打电话/收发短信"
