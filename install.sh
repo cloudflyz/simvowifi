@@ -24,6 +24,16 @@ apt-get install -y -qq pcscd pcsc-tools python3-venv python3-pip python3-pyscard
 systemctl enable --now pcscd 2>/dev/null || true
 ok "pcscd 已安装并启动"
 
+# engine 镜像内的 pcsc-lite 客户端锁定 2.3.3，与宿主 pcscd 版本不匹配会导致
+# PC/SC 客户端/服务端协议不兼容（上游 vowifi_gateway 特别警告）。Debian 13 = 2.3.3 ✓
+PCSCD_VER="$(pcscd --version 2>/dev/null | head -1 | awk '{print $NF}' || echo unknown)"
+case "$PCSCD_VER" in
+    2.3.*) ok "pcscd 版本 $PCSCD_VER（与 engine 客户端 2.3.x 兼容）" ;;
+    *)   warn "pcscd 版本 $PCSCD_VER ≠ 2.3.x（engine 客户端锁定 2.3.3）。"
+         warn "  协议不匹配会导致读卡失败。方案: 升级到 Debian 13/Ubuntu 24.04+，"
+         warn "  或用 PCSC_VERSION 构建参数自行重编 engine（见 engine/Dockerfile）" ;;
+esac
+
 say "2/6 · Docker"
 if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
     ok "Docker 已就绪: $(docker --version | cut -d, -f1)"

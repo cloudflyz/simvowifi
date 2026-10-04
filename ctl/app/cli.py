@@ -99,6 +99,13 @@ def cmd_doctor(args):
     p = subprocess.run(["systemctl", "is-active", "pcscd"], capture_output=True, text=True)
     if "active" in (p.stdout or ""):
         ok("pcscd 服务运行中")
+        v = subprocess.run(["pcscd", "--version"], capture_output=True, text=True)
+        first = (v.stdout or "").splitlines()[0] if v.stdout else ""
+        ver = first.split()[-1] if first else "unknown"
+        if ver.startswith("2.3."):
+            ok(f"pcscd 版本 {ver}（与 engine 客户端兼容）")
+        else:
+            warn(f"pcscd 版本 {ver} ≠ 2.3.x，与 engine 锁定的 2.3.3 客户端可能协议不匹配")
     elif shutil.which("pcscd") or os.path.exists("/usr/sbin/pcscd"):
         warn("pcscd 未运行 → systemctl enable --now pcscd")
     else:

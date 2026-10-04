@@ -21,6 +21,6 @@ services:
       - "5060:5060/udp"           # UDP 传输（默认）
       - "5060:5060/tcp"           # TCP 传输（可选）
       - "5061:5061/tcp"           # TLS 传输（可选）
-      - "5038:5038/tcp"           # AMI（simvowifi CLI 用）
+      - "127.0.0.1:5038:5038/tcp" # AMI（仅本机 CLI 用，不暴露局域网）
       # RTP 媒体（与 ports.rtp_start/rtp_span 对应）
       - "10000-10059:10000-10059/udp"
