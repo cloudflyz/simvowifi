@@ -1,0 +1,21 @@
+# NOTICE — 第三方组件与许可归属
+
+simvowifi 整体以 GPLv3 发布（见 LICENSE）。本文件说明各组件的来源与原始许可，
+在此对原作者表示感谢。
+
+| 组件 | 来源 | 原始许可 | 说明 |
+|---|---|---|---|
+| `engine/swu_ike.py` | [fasferraz/SWu-IKEv2](https://github.com/fasferraz/SWu-IKEv2)（经 [pagecat/vowifi_gateway](https://github.com/pagecat/vowifi_gateway) 修补） | GPLv3 | 纯 Python IKEv2/IPsec（ePDG 隧道 + EAP-AKA）客户端，是本仓库采用 GPLv3 的原因 |
+| `engine/pin_keeper.py`、`engine/ami_usim.py`、`engine/render.py`、`engine/notify.py`、`engine/entrypoint.sh`、`engine/Dockerfile`、`engine/templates/*`、`engine/patches/*` | [pagecat/vowifi_gateway](https://github.com/pagecat/vowifi_gateway) | MIT © 2026 pagecat | VoWiFi→SIP 网关引擎。其中 `render.py`/`notify.py` 由 simvowifi 修改（增加 Bark 推送支持） |
+| `ctl/app/sim.py` | 改编自 pagecat/vowifi_gateway `control/app/sim.py` | MIT © 2026 pagecat | PC/SC 读卡（IMSI/ICCID/SMSC/PIN 状态） |
+| Asterisk (sysmocom fork)、pjproject (sysmocom fork) | [sysmocom](https://gitea.sysmocom.de/sysmocom/asterisk)（`sysmocom/20.7.0` 分支） | GPLv2（Asterisk 系） | 在 `engine/Dockerfile` 构建时从上游克隆，本仓库不包含其源码 |
+| pcsc-lite | [LudovicRousseau/PCSC](https://github.com/LudovicRousseau/PCSC) | BSD-like | engine 镜像构建时按版本 2.3.3 编译 |
+| 设计参考 | [MddIdd/mdd-sim-gateway](https://github.com/MddIdd/mdd-sim-gateway) | 见其仓库 | 多 SIM 网关的架构参考（本项目的路线图方向） |
+
+simvowifi 新增代码（`ctl/` 控制面、`engine/bark.py`、`install.sh`、文档）同样以 GPLv3 发布。
+
+## 上游修补说明
+
+`engine/swu_ike.py` 相对 fasferraz/SWu-IKEv2 原版的修补（NAT-T 保活、DPD、RFC 7383 分片、
+P-CSCF 重新同步、3GPP TS 24.302 §7.2.2.2 拒绝退避等）来自 pagecat/vowifi_gateway，
+详见其仓库注释。

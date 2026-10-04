@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# simvowifi CLI 包装器 —— 通过仓库 venv 运行控制面
+set -u
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV="$REPO/.venv"
+PY="$VENV/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3)"
+export PYTHONPATH="$REPO/ctl${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -u -m app.cli "$@"

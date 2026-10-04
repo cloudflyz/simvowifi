@@ -1,0 +1,26 @@
+# simvowifi engine — 单线路
+# 数据目录默认 ./data，可用环境变量 SIMVOWIFI_DATA_DIR 覆盖（绝对路径）
+services:
+  engine:
+    image: simvowifi/engine:latest
+    container_name: simvowifi-engine
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun:rwm
+    volumes:
+      - ${SIMVOWIFI_DATA_DIR:-./data}/instance.json:/config/instance.json:ro
+      - ${SIMVOWIFI_DATA_DIR:-./data}/logs:/logs
+      - ${SIMVOWIFI_DATA_DIR:-./data}/run:/run/vowifi
+      - ${SIMVOWIFI_DATA_DIR:-./data}/certs/certificate.crt:/etc/asterisk/certificate.crt:ro
+      - ${SIMVOWIFI_DATA_DIR:-./data}/certs/certificate.key:/etc/asterisk/certificate.key:ro
+      - /run/pcscd:/run/pcscd    # 宿主机 pcscd 套接字（读卡器）
+    ports:
+      # Linphone / SIP 客户端
+      - "5060:5060/udp"           # UDP 传输（默认）
+      - "5060:5060/tcp"           # TCP 传输（可选）
+      - "5061:5061/tcp"           # TLS 传输（可选）
+      - "5038:5038/tcp"           # AMI（simvowifi CLI 用）
+      # RTP 媒体（与 ports.rtp_start/rtp_span 对应）
+      - "10000-10059:10000-10059/udp"

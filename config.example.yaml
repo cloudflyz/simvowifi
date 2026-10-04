@@ -1,0 +1,50 @@
+# simvowifi 配置示例 —— 复制到 data/config.yaml（simvowifi init 会自动生成）
+
+line:
+  name: ""            # 线路昵称，Bark 推送显示用（如 "移动主号"）
+  pin: ""             # SIM 卡 PIN 码（启用 PIN 的卡必填；留空=无 PIN）
+  imei: ""            # 15 位 IMEI。留空则 provision 时随机生成并回存
+  msisdn: ""          # 本机号码（E.164，如 +8613800138000）。可选但建议填
+  smsc: ""            # 短信中心。留空 = provision 时自动读卡（EF_SMSP）
+  apn: "ims"
+  idr_mode: "apn"     # apn（默认）| fqdn（严格 ePDG 用）
+  cp_mode: "auto"     # auto（默认）| v6 | v4 | dual
+  use_reauth_id: true
+  rekey_minutes: 30
+  pani_country: ""    # ISO 国家码（如 CN）。留空按 MCC 自动
+
+sip:
+  transport: "udp"        # udp | tcp | tls —— Linphone iOS 建议 udp（局域网）或 tcp
+  advertise_address: ""   # 对 SIP 客户端通告的地址。留空自动探测本机 IP
+  ring_timeout: 35        # 去电振铃超时（秒）
+  account:                # ← Linphone 里填的账号
+    username: linphone
+    password: "自动生成"   # init 时生成随机密码，请勿手改除非你知道在做什么
+
+bark:
+  server: "https://api.day.app"  # 自建 bark-server 改这里
+  key: ""                # ← iOS Bark App 复制的 key（必填，否则收不到推送）
+  group: "simvowifi"
+  call_sound: "bell"     # 来电铃声，见 bark.day.app 声音列表
+  call_level: "critical" # critical=绕过静音响铃（需在 Bark App 授权重要告警）
+  include_body: true     # false=短信内容不进推送（隐私）
+  events:                # 哪些事件推 Bark
+    call_in: true
+    sms_in: true
+    tunnel_down: true
+    registered: true
+
+ami:
+  user: simvowifi
+  secret: "自动生成"
+  port: 5038
+
+ports:
+  sip_udp: 5060
+  sip_tls: 5061
+  ami: 5038
+  rtp_start: 10000   # 与 docker-compose.yml 的 RTP 映射保持一致
+  rtp_span: 60
+
+debug:
+  asterisk: true
