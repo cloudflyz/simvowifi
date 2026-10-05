@@ -24,6 +24,11 @@ sip:
   account:                # ← Linphone 里填的账号
     username: linphone
     password: "自动生成"   # init 时生成随机密码，请勿手改除非你知道在做什么
+  webrtc:                 # 浏览器软电话（WebUI → engine 的 WSS 建议用 WebUI 开关管理）
+    enable: false         # true 后需重新 provision + restart engine
+    username: webrtc
+    password: "自动生成"
+    port: 8089            # WSS 端口（docker-compose.yml 已映射）
 
 bark:
   server: "https://api.day.app"  # 自建 bark-server 改这里
@@ -56,6 +61,7 @@ webui:
   host: "0.0.0.0"     # 局域网可访问；仅本机用改 127.0.0.1
   port: 8080
   password: "自动生成"  # 浏览器登录密码（simvowifi web）
+  tls: false          # true = 用 data/certs 自签名证书提供 HTTPS（软电话麦克风需要安全上下文）
 
 ports:
   sip_udp: 5060

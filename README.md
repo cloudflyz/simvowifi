@@ -30,8 +30,9 @@ iOS 用 Linphone 接打电话，来电/短信用 Bark 推送。**
 | 📞 接打电话 | Linphone（iOS/任何 SIP 客户端）注册本机 SIP，经运营商 IMS 线路双向通话，AMR↔G711/Opus 自动转码 |
 | 💬 收发短信 | SIP MESSAGE ↔ 运营商 SMS；Linphone 聊天直接收发；CLI 也能 `simvowifi sms send` |
 | 🔔 Bark 推送 | 来电（critical 级别，静音也响铃+点击唤起 Linphone）、短信、隧道断开/注册成功 |
+| 🖥 WebUI | 浏览器管理：总览/短信/通话、WebRTC 软电话、SIM 开通、Bark/配置/日志（`simvowifi web`，详见 [docs/WEBUI.md](docs/WEBUI.md)） |
 | 🔐 SIM 鉴权 | EAP-AKA / IMS-AKA 在物理 SIM 内完成，**不读取 Ki/OPC**，PIN 卡支持 |
-| 📟 单命令运维 | `simvowifi doctor/provision/start/status/...`，无 WebUI 依赖 |
+| 📟 单命令运维 | `simvowifi doctor/provision/start/status/...`，CLI 与 WebUI 互为替代 |
 
 ## 硬件与前提
 
@@ -72,12 +73,13 @@ simvowifi restart           # 重启引擎
 ```
 simvowifi/
 ├── engine/          # ePDG 隧道 + Asterisk IMS 引擎（Docker），源自 vowifi_gateway (MIT) + Bark 扩展
-├── ctl/             # 轻量控制面（CLI，无 WebUI）
+├── ctl/             # 控制面：CLI + WebUI 后端（Flask）
+├── webui/           # WebUI 前端源码（React + Vite），dist/ 已预构建可直接部署
 ├── bin/simvowifi    # CLI 入口
 ├── docker-compose.yml
 ├── install.sh
 ├── config.example.yaml
-└── docs/            # SETUP / LINPHONE / BARK / ARCHITECTURE / TROUBLESHOOTING
+└── docs/            # SETUP / LINPHONE / BARK / WEBUI / ARCHITECTURE / TROUBLESHOOTING
 ```
 
 ## 文档

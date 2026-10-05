@@ -86,9 +86,13 @@ def build_instance(cfg: dict, card: dict) -> dict:
             "user_agent": sip.get("user_agent", "iOS/26.6 iPhone"),
             "pani_country": line.get("pani_country", ""),
             "pani_country_enable": True,
-            # WebRTC 默认关闭（本项目的客户端是 Linphone）
-            "webrtc": {"enable": False, "username": "webrtc",
-                       "password": "unused", "port": 8089},
+            # 浏览器软电话（WebRTC over WSS）——由 config.yaml sip.webrtc 控制
+            "webrtc": {
+                "enable": bool((sip.get("webrtc") or {}).get("enable", False)),
+                "username": (sip.get("webrtc") or {}).get("username", "webrtc"),
+                "password": (sip.get("webrtc") or {}).get("password", "") or "webrtc-secret",
+                "port": int((sip.get("webrtc") or {}).get("port", 8089)),
+            },
         },
         "bark": bark,
         "debug": cfg.get("debug", {"asterisk": True}),

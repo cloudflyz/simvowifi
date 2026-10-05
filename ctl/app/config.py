@@ -58,6 +58,10 @@ def default_config() -> dict:
             "advertise_address": "",  # 空 = 自动探测
             "ring_timeout": 35,
             "account": {"username": "linphone", "password": gen_password()},
+            # 浏览器软电话（WebRTC over WSS，Asterisk 8089）。默认关闭——
+            # 开启后需重新 provision + 重启 engine，且浏览器需 HTTPS 访问 WebUI
+            "webrtc": {"enable": False, "username": "webrtc",
+                       "password": gen_password(), "port": 8089},
         },
         "bark": {
             "server": "https://api.day.app",
@@ -79,6 +83,7 @@ def default_config() -> dict:
             "host": "0.0.0.0",   # 局域网可访问；仅本机改 127.0.0.1
             "port": 8080,
             "password": gen_password(),
+            "tls": False,        # HTTPS（data/certs 自签名证书）。浏览器软电话麦克风必需
         },
         "ports": {
             "sip_udp": 5060, "sip_tls": 5061,
