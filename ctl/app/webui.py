@@ -343,7 +343,12 @@ def create_app() -> Flask:
         return jsonify(
             server=b.get("server", "https://api.day.app"),
             key=b.get("key", ""),
+            group=b.get("group", "VoIP"),
             include_body=bool(b.get("include_body", True)),
+            call_sound=b.get("call_sound", "alarm"),
+            call_level=b.get("call_level", "critical"),
+            call_group=b.get("call_group", ""),
+            call_isArchive=int(b.get("call_isArchive", 1)),
             encrypt={
                 "algorithm": str(enc.get("algorithm", "AES128")),
                 "mode": str(enc.get("mode", "CBC")),
@@ -381,8 +386,18 @@ def create_app() -> Flask:
             b["server"] = server
         if "key" in d:
             b["key"] = str(d.get("key") or "").strip()
+        if "group" in d:
+            b["group"] = str(d.get("group") or "VoIP")
         if "include_body" in d:
             b["include_body"] = bool(d.get("include_body"))
+        if "call_sound" in d:
+            b["call_sound"] = str(d.get("call_sound") or "alarm")
+        if "call_level" in d:
+            b["call_level"] = str(d.get("call_level") or "critical")
+        if "call_group" in d:
+            b["call_group"] = str(d.get("call_group") or "")
+        if "call_isArchive" in d:
+            b["call_isArchive"] = int(d.get("call_isArchive", 1))
         b["encrypt"] = enc
         cfgmod.save(cfg)
         return jsonify(ok=True, note="已保存。engine 推送需重启后生效；测试推送立即按新配置发送。")

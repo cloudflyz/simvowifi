@@ -17,23 +17,50 @@ Bark 参数参考: https://bark.day.app/#/tutorial
 import base64
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
 
 ENV_PATH = os.environ.get("VOWIFI_ENV", "/run/vowifi/engine.env")
 
+# ── SMS 验证码提取（与 x3-server / YN076 同款算法，三项目统一）───────────────
+# 关键词上下文优先（最精确），然后裸数字回退（4-6 位，排除服务码/年份）。
+_SMS_CODE_KEYWORDS = (
+    "验证码", "校验码", "动态码", "动态密码", "验证密码", "登录码",
+    "CODE", "Code", "code", "OTP", "otp",
+)
+_SMS_CODE_KEYWORD_RE = re.compile(
+    "(?:" + "|".join(re.escape(k) for k in _SMS_CODE_KEYWORDS) + ")[^0-9]{0,8}([0-9]{4,8})")
+_SMS_CODE_BARE_RE = re.compile("(?:[^0-9]|^)([0-9]{4,6})(?:[^0-9]|$)")
+_SMS_CODE_DENY_RE = re.compile(
+    "^(?:10086|10010|10000|955[0-9][0-9]?|110|120|119|123[0-9][0-9]|20[0-9][0-9])$")
+
+
+def _extract_sms_code(text: str) -> str:
+    """从短信正文提取验证码，无则返回空字符串。"""
+    if not text:
+        return ""
+    match = _SMS_CODE_KEYWORD_RE.search(text)
+    if match:
+        return match.group(1)
+    # 裸数字回退：4-6 位，排除服务码和年份
+    for match in _SMS_CODE_BARE_RE.finditer(text):
+        candidate = match.group(1)
+        if not _SMS_CODE_DENY_RE.match(candidate):
+            return candidate
+    return ""
+
+
 # 每类事件的默认推送样式（可被 engine.env 中 BARK_* 覆盖）
 DEFAULTS = {
     "call_in": {
-        "sound": "bell",
-        "group": "simvowifi-call",
-        # critical: 绕过静音/专注模式响铃，配合 volume；iOS 需在 Bark 设置中
-        # 允许"重要告警"。改为 active/timeSensitive 可降级。
+        "sound": "alarm",
+        "group": "VoIP",
         "level": "critical",
         "volume": "3",
-        # 点击通知尝试唤起 Linphone（iOS 通过 sip: URL scheme）
         "url": "linphone:",
+        "isArchive": 1,
     },
     "sms_in": {
         "sound": "tiptoe",
@@ -206,6 +233,7 @@ def notify(event: str, title: str, body: str, env: dict | None = None) -> bool:
         ("level", "BARK_LEVEL"),
         ("volume", "BARK_VOLUME"),
         ("url", "BARK_URL"),
+        ("isArchive", "BARK_ISARCHIVE"),
     ):
         if env.get(envk):
             style[k] = env[envk]
@@ -215,10 +243,18 @@ def notify(event: str, title: str, body: str, env: dict | None = None) -> bool:
             style["sound"] = env["BARK_CALL_SOUND"]
         if env.get("BARK_CALL_LEVEL"):
             style["level"] = env["BARK_CALL_LEVEL"]
+        if env.get("BARK_CALL_GROUP"):
+            style["group"] = env["BARK_CALL_GROUP"]
+        if env.get("BARK_CALL_ISARCHIVE"):
+            style["isArchive"] = env["BARK_CALL_ISARCHIVE"]
     if event == "sms_in":
         # 隐私开关：BARK_INCLUDE_BODY=0 时短信内容不进推送，只报号码
         if env.get("BARK_INCLUDE_BODY", "1") == "0":
             body = "（内容已隐藏，请到 Linphone 查看）"
+        # 验证码提取：提出来放 title（锁屏可见）+ copy 参数（点通知即复制）
+        code = _extract_sms_code(body)
+        if code:
+            style["copy"] = code
 
     line_name = env.get("BARK_LINE_NAME", "")
     if line_name and event in ("call_in", "sms_in"):

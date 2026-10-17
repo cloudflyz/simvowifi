@@ -18,7 +18,7 @@ same => n,Set(CALLPEER=${CALLERID(num)})
 same => n,Progress()
 same => n,Set(FILE(/logs/calls.txt,,,a)=IN call from ${CALLERID(num)} at ${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})
 same => n,TrySystem(/usr/local/bin/notify.py call_in "${CALLERID(num)}" &)
-same => n,WaitForPrecondition(10,2000)
+same => n,Wait(1.5)
 same => n,Ringing()
 {% if dialstr %}
 same => n,Dial({{ dialstr }},60)

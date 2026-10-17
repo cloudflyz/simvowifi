@@ -33,10 +33,14 @@ sip:
 bark:
   server: "https://api.day.app"  # 自建 bark-server 改这里
   key: ""                # ← iOS Bark App 复制的 key（必填，否则收不到推送）
-  group: "simvowifi"
-  call_sound: "bell"     # 来电铃声，见 bark.day.app 声音列表
+  group: "VoIP"          # 分组名，iOS 通知中心归组
+  call_sound: "alarm"    # 来电铃声，alarm=长响铃，见 bark.day.app 声音列表
   call_level: "critical" # critical=绕过静音响铃（需在 Bark App 授权重要告警）
   include_body: true     # false=短信内容不进推送（隐私）
+  # ── 来电唤醒 Linphone ──
+  # url=linphone: 写在 bark.py 里（DEFAULTS），不在此配置
+  # 收到来电 → Bark 推送（critical+alarm）→ 用户点通知 → 唤起 Linphone →
+  # 1.5 秒后 Dial() 开始振铃 → 60 秒超时等待接听
   # 推送加密（可选）：与 Bark App 首页『推送加密』设置一致；encrypt.key 留空=不加密
   # App 内选 AES128/CBC/PKCS7，密钥填同样的 16 位字符；IV 可任意 16 位（推送每条随机携带）
   encrypt:

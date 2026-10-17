@@ -318,14 +318,18 @@ def bark_env_lines(cfg) -> list:
         f"BARK_LINE_NAME={_env_str(b.get('line_name', ''))}",
     ]
     # 通用样式覆盖（可选）
-    for k in ("sound", "level", "volume", "url"):
-        if b.get(k):
+    for k in ("sound", "level", "volume", "url", "isArchive"):
+        if b.get(k) is not None:
             lines.append(f"BARK_{k.upper()}={_env_str(b[k])}")
-    # 来电/短信专属覆盖（可选）
+    # 来电专属覆盖（可选）
     if b.get("call_sound"):
         lines.append(f"BARK_CALL_SOUND={b['call_sound']}")
     if b.get("call_level"):
         lines.append(f"BARK_CALL_LEVEL={b['call_level']}")
+    if b.get("call_group"):
+        lines.append(f"BARK_CALL_GROUP={b['call_group']}")
+    if b.get("call_isArchive") is not None:
+        lines.append(f"BARK_CALL_ISARCHIVE={b['call_isArchive']}")
     # 推送加密（可选；encrypt.key 非空时启用，需与 Bark App『推送加密』设置一致）
     enc = b.get("encrypt") or {}
     if isinstance(enc, dict) and enc.get("key"):
