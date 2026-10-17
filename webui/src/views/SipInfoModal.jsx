@@ -10,7 +10,26 @@ export default function SipInfoModal({ onClose }) {
   useEffect(() => { api.linphone().then(setInfo).catch((e) => setErr(e.message)) }, [])
 
   const copy = async (label, value) => {
-    try { await navigator.clipboard.writeText(value); setCopied(label); setTimeout(() => setCopied(''), 1500) } catch {}
+    try {
+      // 优先用 clipboard API（需要 HTTPS）
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value)
+      } else {
+        // Fallback: 临时 textarea + execCommand
+        const ta = document.createElement('textarea')
+        ta.value = value
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setCopied(label)
+      setTimeout(() => setCopied(''), 1500)
+    } catch (e) {
+      console.error('copy failed:', e)
+    }
   }
 
   const Field = ({ label, value, hint }) => (
