@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { MessageSquare, Send, Trash2, ChevronLeft, Plus, Check, CheckCheck } from 'lucide-react'
 import { api } from '../api.js'
 
-// 短信：后端只有扁平列表（/api/sms，最新在前），会话在客户端按号码分组。
+const inp = "flex-1 px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all"
+
 export default function Messages({ overview, showToast }) {
-  const [msgs, setMsgs] = useState(null)      // 最新在前
+  const [msgs, setMsgs] = useState(null)
   const [peer, setPeer] = useState(null)
   const [text, setText] = useState('')
   const [newTo, setNewTo] = useState('')
@@ -25,19 +27,17 @@ export default function Messages({ overview, showToast }) {
   useEffect(() => { setSelMode(false); setSelIds(new Set()) }, [peer])
   useEffect(() => { if (msgs && msgs.length === 0) { setSelMode(false); setSelIds(new Set()) } }, [msgs])
 
-  // 会话列表：按号码分组，取每组最新一条
-  const threads = React.useMemo(() => {
+  const threads = useMemo(() => {
     if (!msgs) return []
     const by = new Map()
-    for (const m of msgs) {                       // 最新在前 → 第一次遇到即最新
-      if (!by.has(m.peer)) by.set(m.peer, { peer: m.peer, last: m, count: 0, unreadHint: m.dir === 'IN' })
+    for (const m of msgs) {
+      if (!by.has(m.peer)) by.set(m.peer, { peer: m.peer, last: m, count: 0 })
       by.get(m.peer).count++
     }
     return [...by.values()]
   }, [msgs])
 
-  // 当前会话消息（旧→新 显示）
-  const threadMsgs = React.useMemo(() => {
+  const threadMsgs = useMemo(() => {
     if (!msgs || !peer) return []
     return msgs.filter((m) => m.peer === peer).slice().reverse()
   }, [msgs, peer])
@@ -52,9 +52,9 @@ export default function Messages({ overview, showToast }) {
       const res = await api.sms.send(to, text.trim())
       setText(''); setPeer(to); setNewTo(''); setComposing(false)
       await load()
-      if (res && res.ok === false) toast('发送失败：' + (res.detail || res.error || '未知错误'))
-      else toast(`已发送给 ${to}`)
-    } catch (e) { toast('发送失败：' + e.message) }
+      if (res && res.ok === false) toast('发送失败：' + (res.detail || res.error || '未知错误'), 'error')
+      else toast(`已发送给 ${to}`, 'success')
+    } catch (e) { toast('发送失败：' + e.message, 'error') }
     setSending(false)
   }
 
@@ -66,8 +66,8 @@ export default function Messages({ overview, showToast }) {
     try {
       await api.sms.delete({ ids: [...selIds] })
       setSelMode(false); setSelIds(new Set()); await load()
-      toast('已删除')
-    } catch (e) { toast('删除失败：' + e.message) }
+      toast('已删除', 'success')
+    } catch (e) { toast('删除失败：' + e.message, 'error') }
   }
 
   const deleteThread = async (p, e) => {
@@ -76,9 +76,8 @@ export default function Messages({ overview, showToast }) {
     try {
       await api.sms.delete({ peer: p })
       if (peer === p) { setPeer(null); setComposing(false) }
-      await load()
-      toast('会话已删除')
-    } catch (e2) { toast('删除失败：' + e2.message) }
+      await load(); toast('会话已删除', 'success')
+    } catch (e2) { toast('删除失败：' + e2.message, 'error') }
   }
 
   const clearAll = async () => {
@@ -87,104 +86,148 @@ export default function Messages({ overview, showToast }) {
     try {
       await api.sms.delete({ all: true })
       setPeer(null); setMsgs([]); setComposing(false)
-      toast('已清空')
-    } catch (e) { toast('删除失败：' + e.message) }
+      toast('已清空', 'success')
+    } catch (e) { toast('删除失败：' + e.message, 'error') }
   }
 
   if (!provisioned) return (
-    <div className="card" style={{ padding: 24, color: 'var(--text-dim)' }}>
-      尚未开通线路，短信功能需要先开通 SIM 并启动 engine。
+    <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <MessageSquare className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+      <div className="text-slate-500 text-sm">尚未开通线路，短信功能需要先开通 SIM 并启动 engine。</div>
     </div>
   )
 
   return (
-    <div className="messages-page" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       <div className={`split-pane ${peer || composing ? 'is-detail' : 'is-list'}`}
-        style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gridTemplateRows: 'minmax(0, 1fr)', gap: 16, flex: 1, minHeight: 0 }}>
-        {/* ---- 会话列表 ---- */}
-        <div className="card pane-list" style={{ padding: 12, overflow: 'auto', minHeight: 0 }}>
-          <button className="btn btn-primary" style={{ width: '100%', marginBottom: 8 }} onClick={() => {
-            setPeer(null); setComposing(true)
-          }}>＋ 新短信</button>
-          {threads.length > 0 &&
-            <button className="btn btn-ghost" style={{ width: '100%', marginBottom: 10, color: '#ef4444', fontSize: 12 }}
-              onClick={clearAll}>清空全部</button>}
+        style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gridTemplateRows: 'minmax(0, 1fr)', gap: 3, flex: 1, minHeight: 0 }}>
+
+        {/* ── 会话列表 ── */}
+        <div className="pane-list rounded-2xl overflow-y-auto no-scrollbar p-3 space-y-1"
+          style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+          <button onClick={() => { setPeer(null); setComposing(true) }}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white mb-2 transition-all"
+            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+            <Plus className="w-4 h-4" /> 新短信
+          </button>
+          {threads.length > 0 && (
+            <button onClick={clearAll}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors mb-2">
+              <Trash2 className="w-3 h-3" /> 清空全部
+            </button>
+          )}
+
           {threads.map((t) => (
-            <div key={t.peer} onClick={() => { setPeer(t.peer); setComposing(false) }} className="hover-row"
-              style={{ padding: 10, borderRadius: 10, cursor: 'pointer', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8,
-                background: peer === t.peer ? 'var(--active)' : 'transparent' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="mono">{t.peer}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-mute)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div key={t.peer} onClick={() => { setPeer(t.peer); setComposing(false) }}
+              className="group flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+              style={{ background: peer === t.peer ? 'rgba(99,102,241,.1)' : 'transparent' }}>
+              <div className="w-8 h-8 rounded-full bg-slate-700/60 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm text-slate-200 truncate font-mono">{t.peer}</div>
+                <div className="text-xs text-slate-500 truncate">
                   {t.last.dir === 'IN' ? '↙ ' : '↗ '}{t.last.body}
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: 'var(--text-faint)', flexShrink: 0 }}>{t.count}</span>
-              <button className="row-del" title="删除会话" aria-label={`删除与 ${t.peer} 的会话`}
-                onClick={(e) => deleteThread(t.peer, e)}>🗑</button>
+              <span className="text-[10px] text-slate-600 flex-shrink-0">{t.count}</span>
+              <button onClick={(e) => deleteThread(t.peer, e)} title="删除"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 p-1">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
-          {msgs && threads.length === 0 && <div style={{ color: 'var(--text-mute)', fontSize: 13, padding: 8 }}>暂无短信。</div>}
-          {!msgs && <div style={{ color: 'var(--text-mute)', fontSize: 13, padding: 8 }}>加载中…</div>}
+          {msgs && threads.length === 0 && <div className="text-slate-500 text-sm text-center py-4">暂无短信</div>}
+          {!msgs && <div className="text-slate-500 text-sm text-center py-4">加载中…</div>}
         </div>
 
-        {/* ---- 会话详情 ---- */}
-        <div className="card pane-detail" style={{ display: 'flex', flexDirection: 'column', padding: 0, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-          <div style={{ padding: 14, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, minWidth: 0, flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-ghost messages-back" onClick={() => { setPeer(null); setComposing(false) }}>← 返回</button>
-            {peer ? <span className="mono" style={{ fontWeight: 600, flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{peer}</span>
+        {/* ── 会话详情 ── */}
+        <div className="pane-detail rounded-2xl flex flex-col overflow-hidden"
+          style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+
+          {/* 头部 */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800/60 flex-shrink-0">
+            <button className="messages-back flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
+              onClick={() => { setPeer(null); setComposing(false) }}>
+              <ChevronLeft className="w-4 h-4" /> 返回
+            </button>
+            {peer
+              ? <span className="font-mono text-sm font-semibold text-white truncate flex-1">{peer}</span>
               : <input placeholder="收件号码，如 +8613800138000" value={newTo}
                 onChange={(e) => setNewTo(e.target.value)}
-                style={{ maxWidth: '100%', flex: '1 1 160px', minWidth: 0 }} />}
+                className="flex-1 px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all" />}
             {peer && threadMsgs.length > 0 && (
               selMode ? (
-                <>
-                  <span style={{ fontSize: 12, color: 'var(--text-mute)' }}>已选 {selIds.size} 条</span>
-                  <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12, color: '#ef4444' }}
-                    disabled={!selIds.size} onClick={deleteSelected}>删除</button>
-                  <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
-                    onClick={() => { setSelMode(false); setSelIds(new Set()) }}>取消</button>
-                </>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">已选 {selIds.size} 条</span>
+                  <button onClick={deleteSelected} disabled={!selIds.size}
+                    className="px-2.5 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50">删除</button>
+                  <button onClick={() => { setSelMode(false); setSelIds(new Set()) }}
+                    className="px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-slate-700/60 transition-colors">取消</button>
+                </div>
               ) : (
-                <>
-                  <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
-                    onClick={() => setSelMode(true)}>选择</button>
-                  <button className="btn btn-ghost" title="删除会话" style={{ padding: '4px 10px', fontSize: 12, color: '#ef4444' }}
-                    onClick={() => deleteThread(peer)}>全删</button>
-                </>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelMode(true)}
+                    className="px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-slate-700/60 transition-colors">选择</button>
+                  <button onClick={() => deleteThread(peer)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-400/10 transition-colors">
+                    <Trash2 className="w-3 h-3" /> 全删
+                  </button>
+                </div>
               )
             )}
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+          {/* 消息列表 */}
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 py-3 space-y-2">
             {threadMsgs.map((m) => {
               const out = m.dir === 'OUT'
               const checked = selIds.has(m.id)
               return (
-                <div key={m.id} className="msg-row" onClick={() => selMode && toggleSel(m.id)}
-                  style={{ alignSelf: out ? 'flex-end' : 'flex-start',
-                    cursor: selMode ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', gap: 8,
-                    flexDirection: out ? 'row-reverse' : 'row' }}>
-                  {selMode && <input type="checkbox" readOnly checked={checked} style={{ width: 'auto', flexShrink: 0, marginTop: 10 }} />}
-                  <div style={{ minWidth: 0, maxWidth: '100%', flex: '1 1 auto' }}>
-                    <div className="msg-bubble" style={{
-                      background: checked ? 'var(--active)' : out ? 'var(--primary)' : 'var(--hover)',
-                      color: out ? '#fff' : 'var(--text)',
-                      padding: '8px 12px', borderRadius: 12, fontSize: 14,
-                    }}>{m.body}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-mute)', textAlign: out ? 'right' : 'left', marginTop: 2 }}>
+                <div key={m.id} onClick={() => selMode && toggleSel(m.id)}
+                  className="flex items-start gap-2"
+                  style={{
+                    flexDirection: out ? 'row-reverse' : 'row',
+                    justifyContent: out ? 'flex-end' : 'flex-start',
+                    cursor: selMode ? 'pointer' : 'default',
+                  }}>
+                  {selMode && (
+                    <div className={`mt-2 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                      checked ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600'
+                    }`}>
+                      {checked && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                  )}
+                  <div style={{ maxWidth: '75%' }}>
+                    <div className="px-3.5 py-2 rounded-2xl text-sm leading-relaxed"
+                      style={{
+                        background: checked ? 'rgba(99,102,241,.2)' : out ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' : 'rgba(51,65,85,.6)',
+                        color: out ? '#fff' : '#e2e8f0',
+                        border: checked ? '1px solid rgba(99,102,241,.4)' : 'none',
+                      }}>
+                      {m.body}
+                    </div>
+                    <div className={`text-[10px] text-slate-600 mt-1 ${out ? 'text-right' : ''}`}>
                       {m.time}{out ? ' · 已发出' : ''}
                     </div>
                   </div>
                 </div>
               )
             })}
-            {composing && <div style={{ color: 'var(--text-mute)', fontSize: 12.5, textAlign: 'center' }}>输入收件号码后发送</div>}
+            {composing && <div className="text-slate-500 text-xs text-center py-2">输入收件号码后发送</div>}
           </div>
-          <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--border)', flexShrink: 0, minWidth: 0 }}>
-            <input placeholder="短信内容…" value={text} onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()} style={{ flex: 1, minWidth: 0 }} />
-            <button className="btn btn-primary" style={{ flexShrink: 0 }}
-              disabled={sending || (!peer && !newTo) || !text.trim()} onClick={send}>{sending ? '发送中…' : '发送'}</button>
+
+          {/* 输入框 */}
+          <div className="flex gap-2 px-3 py-3 border-t border-slate-800/60 flex-shrink-0">
+            <input placeholder="短信内容…" value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && send()}
+              className={inp} />
+            <button onClick={send} disabled={sending || (!peer && !newTo) || !text.trim()}
+              className="flex items-center justify-center w-10 h-10 rounded-xl text-white transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+              <Send className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

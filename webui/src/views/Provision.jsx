@@ -1,28 +1,27 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { CardSim, RefreshCw, Lock, Unlock, CreditCard, Hash, Globe, KeyRound, ShieldCheck, ArrowRight } from 'lucide-react'
 import { api } from '../api.js'
 
 const PIN_RE = /^\d{4,8}$/
+const inp = "w-full px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all"
+const lbl = "block text-xs font-medium text-slate-400 mb-1"
 
 function ReaderCard({ idx, name, showToast, refreshOverview, setView }) {
-  const [card, setCard] = useState(undefined)   // undefined=未检测 null=检测中
+  const [card, setCard] = useState(undefined)
   const [pinInput, setPinInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const [result, setResult] = useState(null)    // provision 结果 {card, instance}
+  const [result, setResult] = useState(null)
 
   const detect = useCallback(async () => {
     setCard(null); setErr(''); setResult(null)
-    try {
-      const c = await api.card(idx)
-      setCard(c)
-    } catch (e) {
-      setCard({ present: false, error: e.message })
-    }
+    try { setCard(await api.card(idx)) }
+    catch (e) { setCard({ present: false, error: e.message }) }
   }, [idx])
 
   useEffect(() => { detect() }, [detect])
 
-  const unlocked = card && card.imsi          // 能读到 IMSI = PIN 已通过或未启用
+  const unlocked = card && card.imsi
   const locked = card && card.present && !card.imsi && /pin/i.test(card.error || '')
   const pinOk = PIN_RE.test(pinInput)
 
@@ -31,12 +30,8 @@ function ReaderCard({ idx, name, showToast, refreshOverview, setView }) {
     setBusy(true); setErr('')
     try {
       const r = await api.sim.verifyPin(pinInput, idx)
-      if (r.ok) {
-        showToast('PIN 验证通过')
-        await detect()
-      } else {
-        setErr(`${r.error || '验证失败'}${r.tries != null ? `（剩余 ${r.tries} 次）` : ''}`)
-      }
+      if (r.ok) { showToast('PIN 验证通过', 'success'); await detect() }
+      else setErr(`${r.error || '验证失败'}${r.tries != null ? `（剩余 ${r.tries} 次）` : ''}`)
     } catch (e) { setErr(e.message) }
     setBusy(false)
   }
@@ -45,98 +40,102 @@ function ReaderCard({ idx, name, showToast, refreshOverview, setView }) {
     setBusy(true); setErr('')
     try {
       const r = await api.provision(idx, pin || undefined)
-      if (r.ok) {
-        setResult(r)
-        showToast('✅ 开通成功——到总览页启动 engine')
-        refreshOverview && await refreshOverview()
-      } else {
-        setErr(r.error || '开通失败')
-      }
+      if (r.ok) { setResult(r); showToast('✅ 开通成功', 'success'); refreshOverview && await refreshOverview() }
+      else setErr(r.error || '开通失败')
     } catch (e) { setErr(e.message) }
     setBusy(false)
   }
 
-  const row = (k, v, mono) => (
-    <>
-      <span style={{ color: 'var(--text-mute)' }}>{k}</span>
-      <span className={mono ? 'mono' : ''} style={mono ? { fontSize: 11, overflowWrap: 'anywhere' } : undefined}>{v || '—'}</span>
-    </>
+  const Row = ({ k, v, icon: Icon, mono }) => (
+    <div className="flex items-center gap-2">
+      {Icon && <Icon className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
+      <span className="text-slate-500 text-xs">{k}</span>
+      <span className={`text-xs text-slate-300 ${mono ? 'font-mono' : ''} truncate`}>{v || '—'}</span>
+    </div>
   )
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>读卡器 {idx}{name ? ` · ${name}` : ''}</div>
-        <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={detect}>重新检测</button>
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <CardSim className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-semibold text-white">读卡器 {idx}{name ? ` · ${name}` : ''}</span>
+        </div>
+        <button onClick={detect}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-slate-800/60 border border-slate-700 hover:bg-slate-700/60 transition-colors">
+          <RefreshCw className="w-3 h-3" /> 重新检测
+        </button>
       </div>
 
-      {card === null && <div style={{ color: 'var(--text-mute)', fontSize: 13, marginTop: 12 }}>读卡中…</div>}
+      {card === null && <div className="text-slate-500 text-sm">读卡中…</div>}
 
       {card && !card.present && (
-        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-mute)' }}>
+        <div className="text-slate-500 text-sm">
           未检测到 SIM 卡。插入卡后点「重新检测」。
-          {card.error && <div style={{ color: '#ef4444', marginTop: 6 }}>{card.error}</div>}
+          {card.error && <div className="text-red-400 mt-1">{card.error}</div>}
         </div>
       )}
 
       {locked && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 13, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', color: 'var(--text-soft)' }}>
-            {row('ICCID', card.iccid)}
-            {row('状态', <span style={{ color: '#eab308' }}>🔒 需要 PIN（{card.pin_tries != null ? `剩余 ${card.pin_tries} 次` : ''}）</span>)}
+        <div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Row k="ICCID" v={card.iccid} icon={CreditCard} mono />
+            <Row k="状态" v={<span className="text-amber-400 flex items-center gap-1"><Lock className="w-3 h-3" /> 需要 PIN</span>} icon={Lock} />
           </div>
-          <div style={{ marginTop: 12 }}>
-            <label>SIM PIN（CHV1）</label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <input type="password" inputMode="numeric" maxLength={8} className="mono" value={pinInput}
-                onChange={(e) => { setPinInput(e.target.value.replace(/[^0-9]/g, '')); setErr('') }}
-                onKeyDown={(e) => e.key === 'Enter' && pinOk && unlock()}
-                placeholder="4-8 位数字" style={{ flex: 1 }} />
-              <button className="btn btn-primary" disabled={busy || !pinOk} onClick={unlock}>{busy ? '验证中…' : '解锁'}</button>
-            </div>
+          <label className={lbl}>SIM PIN（CHV1）</label>
+          <div className="flex gap-2">
+            <input type="password" inputMode="numeric" maxLength={8} className={`${inp} font-mono`} value={pinInput}
+              onChange={(e) => { setPinInput(e.target.value.replace(/[^0-9]/g, '')); setErr('') }}
+              onKeyDown={(e) => e.key === 'Enter' && pinOk && unlock()}
+              placeholder="4-8 位数字" />
+            <button onClick={unlock} disabled={busy || !pinOk}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+              <Unlock className="w-3.5 h-3.5" /> {busy ? '验证中…' : '解锁'}
+            </button>
           </div>
         </div>
       )}
 
       {unlocked && (
         <div>
-          <div style={{ marginTop: 14, fontSize: 13, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', color: 'var(--text-soft)' }}>
-            {row('ICCID', card.iccid)}
-            {row('IMSI', card.imsi)}
-            {row('运营商', card.mcc && card.mnc ? `${card.mcc}-${card.mnc}` : '')}
-            {row('SMSC', card.smsc, true)}
-            {row('PIN', card.pin_enabled === false ? '未启用' : '已解锁 ✓')}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Row k="ICCID" v={card.iccid} icon={CreditCard} mono />
+            <Row k="IMSI" v={card.imsi} icon={Hash} mono />
+            <Row k="运营商" v={card.mcc && card.mnc ? `${card.mcc}-${card.mnc}` : ''} icon={Globe} />
+            <Row k="SMSC" v={card.smsc} icon={KeyRound} mono />
+            <Row k="PIN" v={card.pin_enabled === false ? '未启用' : <span className="text-emerald-400">已解锁 ✓</span>} icon={ShieldCheck} />
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" disabled={busy} onClick={() => provision(pinInput)}>
-              {busy ? '开通中…' : '开通此 SIM'}
-            </button>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8 }}>
-            开通 = 读卡 + 生成 instance（号码/SMSC/运营商参数）。随后到总览页启动 engine。
-            带 PIN 的卡如需开机自动验证，可在 config.yaml 的 line.pin 保存 PIN。
-          </div>
+          <button onClick={() => provision(pinInput)} disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)' }}>
+            <Unlock className="w-4 h-4" /> {busy ? '开通中…' : '开通此 SIM'}
+          </button>
         </div>
       )}
 
       {result && (
-        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, fontSize: 13, lineHeight: 1.7,
-          background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.4)' }}>
-          ✅ 已生成 instance：IMSI <span className="mono">{result.instance?.imsi}</span>，
-          ePDG <span className="mono">{result.instance?.epdg}</span>。
-          <button className="btn btn-primary" style={{ marginLeft: 10, padding: '4px 10px', fontSize: 12 }}
-            onClick={() => setView('dashboard')}>去启动 ▸</button>
+        <div className="mt-4 p-3 rounded-xl flex items-center justify-between gap-3"
+          style={{ background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.3)' }}>
+          <div className="text-sm text-emerald-400">
+            ✅ 已生成 instance：IMSI <span className="font-mono">{result.instance?.imsi}</span>
+          </div>
+          <button onClick={() => setView('dashboard')}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+            去启动 <ArrowRight className="w-3 h-3" />
+          </button>
         </div>
       )}
 
-      {err && <div style={{ marginTop: 10, fontSize: 12.5, color: '#ef4444' }}>{err}</div>}
+      {err && <div className="mt-3 text-xs text-red-400">{err}</div>}
     </div>
   )
 }
 
 function PinManage({ readers }) {
   const [reader, setReader] = useState(0)
-  const [mode, setMode] = useState('change')   // change | enable | disable
+  const [mode, setMode] = useState('change')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
   const [busy, setBusy] = useState(false)
@@ -154,70 +153,65 @@ function PinManage({ readers }) {
         if (!PIN_RE.test(pin)) throw new Error('PIN 必须是 4-8 位数字')
         r = await api.sim.setPinEnabled(pin, mode === 'enable', reader)
       }
-      setMsg(r.ok ? '✅ 操作成功'
-        : `❌ ${r.error || '操作失败'}${r.tries != null ? `（剩余 ${r.tries} 次）` : ''}`)
+      setMsg(r.ok ? '✅ 操作成功' : `❌ ${r.error || '操作失败'}`)
       if (r.ok) { setPin(''); setPin2('') }
     } catch (e) { setMsg('❌ ' + e.message) }
     setBusy(false)
   }
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>PIN 管理</h3>
-      <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 12 }}>
-        直接对卡操作（与 instance 无关）。输错 3 次卡会锁 PUK，请谨慎。
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+        <KeyRound className="w-4 h-4 text-amber-400" /> PIN 管理
+      </h3>
+      <p className="text-xs text-slate-500 mb-4">直接对卡操作。输错 3 次卡会锁 PUK，请谨慎。</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
-          <label>读卡器</label>
-          <select value={reader} onChange={(e) => setReader(+e.target.value)}>
-            {readers.map((r, i) => <option key={i} value={i}>{i} · {r}</option>)}
+          <label className={lbl}>读卡器</label>
+          <select className={inp} value={reader} onChange={(e) => setReader(+e.target.value)}>
+            {readers.map((r, i) => <option key={i} value={i}>{i} · {r.name || r.idx}</option>)}
           </select>
         </div>
         <div>
-          <label>操作</label>
-          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+          <label className={lbl}>操作</label>
+          <select className={inp} value={mode} onChange={(e) => setMode(e.target.value)}>
             <option value="change">修改 PIN</option>
-            <option value="enable">启用 PIN 开机验证</option>
-            <option value="disable">关闭 PIN 开机验证</option>
+            <option value="enable">启用 PIN</option>
+            <option value="disable">关闭 PIN</option>
           </select>
         </div>
         <div>
-          <label>{mode === 'change' ? '当前 PIN' : 'PIN'}</label>
-          <input type="password" inputMode="numeric" maxLength={8} className="mono" value={pin}
+          <label className={lbl}>{mode === 'change' ? '当前 PIN' : 'PIN'}</label>
+          <input type="password" inputMode="numeric" maxLength={8} className={`${inp} font-mono`} value={pin}
             onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, '')); setMsg('') }} placeholder="4-8 位" />
         </div>
         {mode === 'change' && (
           <div>
-            <label>新 PIN</label>
-            <input type="password" inputMode="numeric" maxLength={8} className="mono" value={pin2}
-              onChange={(e) => { setPin2(e.target.value.replace(/[^0-9]/g, '')); setMsg('') }} placeholder="再输入新 PIN" />
+            <label className={lbl}>新 PIN</label>
+            <input type="password" inputMode="numeric" maxLength={8} className={`${inp} font-mono`} value={pin2}
+              onChange={(e) => { setPin2(e.target.value.replace(/[^0-9]/g, '')); setMsg('') }} placeholder="新 PIN" />
           </div>
         )}
       </div>
-      <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button className="btn btn-primary" disabled={busy || !pin || (mode === 'change' && !pin2)} onClick={submit}>
+      <div className="flex gap-2 mt-4 items-center">
+        <button onClick={submit} disabled={busy || !pin || (mode === 'change' && !pin2)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
           {busy ? '执行中…' : '执行'}
         </button>
-        {msg && <span style={{ fontSize: 13 }}>{msg}</span>}
+        {msg && <span className="text-sm">{msg}</span>}
       </div>
     </div>
   )
 }
 
 export default function Provision({ showToast, refreshOverview, setView }) {
-  const [readers, setReaders] = useState(null)   // null=加载中 [] = 无
+  const [readers, setReaders] = useState(null)
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
-    try {
-      const r = await api.readers()
-      setReaders(r.readers || [])
-      setErr(r.error || '')
-    } catch (e) {
-      setReaders([])
-      setErr(e.message)
-    }
+    try { const r = await api.readers(); setReaders(r.readers || []); setErr(r.error || '') }
+    catch (e) { setReaders([]); setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -226,31 +220,24 @@ export default function Provision({ showToast, refreshOverview, setView }) {
   }, [load])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
+    <div className="flex flex-col gap-4 max-w-3xl">
       {err && (
-        <div className="card" style={{ padding: 16, fontSize: 13.5, color: '#ef4444' }}>
-          读卡器不可用：{err}
-          <div style={{ color: 'var(--text-mute)', marginTop: 6 }}>
-            确认 pcscd 已安装并运行：sudo apt install pcscd && sudo systemctl start pcscd
-          </div>
+        <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.3)' }}>
+          <span className="text-red-400 text-sm">读卡器不可用：{err}</span>
         </div>
       )}
-      {readers === null && <div style={{ color: 'var(--text-dim)' }}>检测读卡器…</div>}
+      {readers === null && <div className="text-slate-500 text-sm">检测读卡器…</div>}
       {readers && readers.length === 0 && !err && (
-        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔌</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginTop: 8 }}>未发现读卡器</div>
-          <div style={{ fontSize: 13, color: 'var(--text-mute)', marginTop: 6, lineHeight: 1.7 }}>
-            插入 USB PC/SC 读卡器（带 SIM 卡），本页自动刷新。<br />
-            需要 pcscd：sudo apt install pcscd
-          </div>
+        <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+          <CardSim className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+          <div className="text-base font-semibold text-slate-400 mb-1">未发现读卡器</div>
+          <div className="text-sm text-slate-600">插入 USB PC/SC 读卡器（带 SIM 卡），本页自动刷新。</div>
         </div>
       )}
-      {readers && readers.map((r, i) => (
-        <ReaderCard key={i} idx={i} name={r} showToast={showToast}
-          refreshOverview={refreshOverview} setView={setView} />
+      {readers?.map((r, i) => (
+        <ReaderCard key={i} idx={i} name={r} showToast={showToast} refreshOverview={refreshOverview} setView={setView} />
       ))}
-      {readers && readers.length > 0 && <PinManage readers={readers} />}
+      {readers?.length > 0 && <PinManage readers={readers} />}
     </div>
   )
 }

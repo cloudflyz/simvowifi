@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { Smartphone, Bell, Shield, Globe, Save, Send, CheckCircle2 } from 'lucide-react'
 import { api } from '../api.js'
 import SipInfoModal from './SipInfoModal.jsx'
 
@@ -7,7 +8,7 @@ function BarkCard({ showToast }) {
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { api.bark.get().then(setS).catch((e) => setMsg(e.message)) }, [])
+  React.useEffect(() => { api.bark.get().then(setS).catch((e) => setMsg(e.message)) }, [])
   if (!s) return null
 
   const upd = (patch) => setS((x) => ({ ...x, ...patch }))
@@ -15,11 +16,8 @@ function BarkCard({ showToast }) {
 
   const save = async () => {
     setBusy(true); setMsg('')
-    try {
-      const r = await api.bark.save(s)
-      setMsg(r.note || '已保存')
-      showToast('Bark 设置已保存')
-    } catch (e) { setMsg('保存失败：' + e.message) }
+    try { const r = await api.bark.save(s); setMsg(r.note || '已保存'); showToast('Bark 设置已保存', 'success') }
+    catch (e) { setMsg('保存失败：' + e.message) }
     setBusy(false)
   }
 
@@ -27,150 +25,135 @@ function BarkCard({ showToast }) {
     setBusy(true)
     try {
       const r = await api.bark.test()
-      showToast(r.ok ? `测试推送已发送 ${r.detail || ''}` : `推送失败：${r.detail || r.error}`)
-    } catch (e) { showToast('推送失败：' + e.message) }
+      showToast(r.ok ? `测试推送已发送 ${r.detail || ''}` : `推送失败：${r.detail || r.error}`, r.ok ? 'success' : 'error')
+    } catch (e) { showToast('推送失败：' + e.message, 'error') }
     setBusy(false)
   }
 
   const encOn = !!s.encrypt.key
 
+  const inp = "w-full px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all"
+  const lbl = "block text-xs font-medium text-slate-400 mb-1.5"
+
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>Bark 推送（iPhone）</h3>
-      <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 14, lineHeight: 1.7 }}>
-        来电/短信推送到 Bark App。自建 Bark 服务器改 server；推送内容加密需 App 端配置同一密钥。
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label>Bark 服务器</label>
-          <input className="mono" value={s.server} onChange={(e) => upd({ server: e.target.value })}
-            placeholder="https://api.day.app" />
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+        <Bell className="w-4 h-4 text-amber-400" /> Bark 推送（iPhone）
+      </h3>
+      <p className="text-xs text-slate-500 mb-4">
+        来电/短信推送到 Bark App。来电推送可唤醒 Linphone 接听。
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="md:col-span-2">
+          <label className={lbl}>Bark 服务器</label>
+          <input className={inp} value={s.server} onChange={(e) => upd({ server: e.target.value })} placeholder="https://api.day.app" />
         </div>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label>设备 key（App 首页的字符串）</label>
-          <input className="mono" value={s.key} onChange={(e) => upd({ key: e.target.value })}
-            placeholder="App 打开后显示的 key" />
+        <div className="md:col-span-2">
+          <label className={lbl}>设备 key</label>
+          <input className={inp} value={s.key} onChange={(e) => upd({ key: e.target.value })} placeholder="App 首页的 key" />
+        </div>
+
+        <div>
+          <label className={lbl}>铃声</label>
+          <input className={inp} value={s.call_sound || 'alarm'} onChange={(e) => upd({ call_sound: e.target.value })} placeholder="alarm" />
+        </div>
+        <div>
+          <label className={lbl}>级别</label>
+          <select className={inp} value={s.call_level || 'critical'} onChange={(e) => upd({ call_level: e.target.value })}>
+            <option value="critical">critical（绕过静音）</option>
+            <option value="timeSensitive">timeSensitive</option>
+            <option value="active">active</option>
+            <option value="passive">passive（静默）</option>
+          </select>
+        </div>
+        <div>
+          <label className={lbl}>分组</label>
+          <input className={inp} value={s.call_group || s.group || 'VoIP'} onChange={(e) => upd({ call_group: e.target.value })} placeholder="VoIP" />
+        </div>
+        <div>
+          <label className={lbl}>归档</label>
+          <select className={inp} value={s.call_isArchive ?? 1} onChange={(e) => upd({ call_isArchive: parseInt(e.target.value) })}>
+            <option value="1">归档（不重复占位）</option>
+            <option value="0">不归档</option>
+          </select>
         </div>
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, color: 'var(--text-soft)' }}>
-        <input type="checkbox" style={{ width: 'auto' }} checked={!!s.include_body}
-          onChange={(e) => upd({ include_body: e.target.checked })} />
+
+      <label className="flex items-center gap-2 mt-4 text-sm text-slate-400 cursor-pointer">
+        <input type="checkbox" className="w-4 h-4 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500/40"
+          checked={!!s.include_body} onChange={(e) => upd({ include_body: e.target.checked })} />
         推送正文包含短信内容 / 来电号码
       </label>
 
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>
-          推送加密 {encOn ? <span style={{ color: '#22c55e', fontSize: 12 }}>· 已启用</span> : <span style={{ color: 'var(--text-mute)', fontSize: 12 }}>· 未启用</span>}
+      {/* 加密 */}
+      <div className="mt-4 pt-4 border-t border-slate-800">
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-4 h-4 text-slate-500" />
+          <span className="text-sm font-semibold text-slate-300">推送加密</span>
+          {encOn ? <span className="text-xs text-emerald-400">· 已启用</span> : <span className="text-xs text-slate-500">· 未启用</span>}
         </div>
-        <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 10, lineHeight: 1.7 }}>
-          与 Bark App「推送加密」设置保持一致：App 生成算法/模式/密钥/IV 后原样填入。留空密钥 = 关闭加密。
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label>算法</label>
-            <select value={s.encrypt.algorithm} onChange={(e) => updEnc({ algorithm: e.target.value })}>
+            <label className={lbl}>算法</label>
+            <select className={inp} value={s.encrypt.algorithm} onChange={(e) => updEnc({ algorithm: e.target.value })}>
               <option>AES128</option><option>AES192</option><option>AES256</option>
             </select>
           </div>
           <div>
-            <label>模式</label>
-            <select value={s.encrypt.mode} onChange={(e) => updEnc({ mode: e.target.value })}>
+            <label className={lbl}>模式</label>
+            <select className={inp} value={s.encrypt.mode} onChange={(e) => updEnc({ mode: e.target.value })}>
               <option>CBC</option><option>GCM</option><option>ECB</option>
             </select>
           </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>密钥 Key</label>
-            <input className="mono" value={s.encrypt.key} onChange={(e) => updEnc({ key: e.target.value })}
-              placeholder="App 生成（留空 = 不加密）" />
+          <div className="col-span-2">
+            <label className={lbl}>密钥 Key</label>
+            <input className={inp} value={s.encrypt.key} onChange={(e) => updEnc({ key: e.target.value })} placeholder="留空 = 不加密" />
           </div>
           {s.encrypt.mode !== 'ECB' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label>IV（GCM 模式下 App 也会显示）</label>
-              <input className="mono" value={s.encrypt.iv} onChange={(e) => updEnc({ iv: e.target.value })}
-                placeholder="App 生成" />
+            <div className="col-span-2">
+              <label className={lbl}>IV</label>
+              <input className={inp} value={s.encrypt.iv} onChange={(e) => updEnc({ iv: e.target.value })} placeholder="留空 = 每条随机" />
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? '处理中…' : '保存'}</button>
-        <button className="btn btn-ghost" disabled={busy || !s.key} onClick={test}>发送测试推送</button>
-        {msg && <span style={{ fontSize: 12.5, color: 'var(--text-dim)', flex: '1 1 200px' }}>{msg}</span>}
+      <div className="flex gap-2 mt-4">
+        <button onClick={save} disabled={busy}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+          <Save className="w-3.5 h-3.5" /> {busy ? '保存中…' : '保存'}
+        </button>
+        <button onClick={test} disabled={busy || !s.key}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-slate-300 bg-slate-800/60 border border-slate-700 hover:bg-slate-700/60 transition-colors disabled:opacity-50">
+          <Send className="w-3.5 h-3.5" /> 发送测试推送
+        </button>
+        {msg && <span className="text-xs text-slate-500 flex-1 self-center">{msg}</span>}
       </div>
     </div>
   )
 }
 
-function SoftphoneCard({ showToast }) {
-  const [prov, setProv] = useState(null)
-  const [tls, setTls] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState('')
-
-  useEffect(() => {
-    api.softphone().then(setProv).catch(() => {})
-    api.session().then((s) => setTls(!!s.webui_tls)).catch(() => {})
-  }, [])
-
-  if (!prov) return null
-
-  const toggleWebrtc = async () => {
-    setBusy(true); setMsg('')
-    try {
-      const r = await api.setWebrtc(!prov.enabled)
-      setProv({ ...prov, enabled: !prov.enabled })
-      setMsg(r.note || '已保存')
-      showToast(r.ok !== false ? 'WebRTC 设置已保存' : '保存失败')
-    } catch (e) { setMsg('保存失败：' + e.message) }
-    setBusy(false)
-  }
-
-  const toggleTls = async () => {
-    setBusy(true); setMsg('')
-    try {
-      const r = await api.setWebuiTls(!tls)
-      setTls(!tls)
-      setMsg(r.note || '已保存')
-    } catch (e) { setMsg('保存失败：' + e.message) }
-    setBusy(false)
-  }
-
+function SipInfoCard({ showToast }) {
+  const [show, setShow] = useState(false)
   return (
-    <>
-      <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>浏览器软电话（WebRTC）</h3>
-        <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 12, lineHeight: 1.7 }}>
-          开启后 engine 的 Asterisk 监听 WSS（端口 {prov.ws_port}），可在 WebUI 直接接打电话。
-          账号：<span className="mono">{prov.username}</span> / <span className="mono">{prov.password ? '••••••' : ''}</span>
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-cyan-400" /> Linphone / SIP 接入
+          </h3>
+          <p className="text-xs text-slate-500">手机 App 注册网关，接打电话/收发短信。</p>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-soft)' }}>
-          <input type="checkbox" style={{ width: 'auto' }} checked={!!prov.enabled}
-            onChange={toggleWebrtc} disabled={busy} />
-          启用 WebRTC（WSS :{prov.ws_port}）
-        </label>
-        <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.7 }}>
-          生效步骤：SIM 开通页重新 provision → 总览页重启 engine → 浏览器需 HTTPS 访问 WebUI，
-          并先访问 <span className="mono">https://{prov.host}:{prov.ws_port}/</span> 接受一次自签名证书。
-        </div>
-        {msg && prov && <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 8, lineHeight: 1.6 }}>{msg}</div>}
+        <button onClick={() => setShow(true)}
+          className="px-3.5 py-2 rounded-xl text-sm font-medium text-white transition-all"
+          style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
+          查看接入信息
+        </button>
       </div>
-
-      <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>WebUI HTTPS</h3>
-        <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 12, lineHeight: 1.7 }}>
-          用 data/certs 自签名证书提供 HTTPS。浏览器软电话的麦克风要求安全上下文（HTTPS 或 localhost），建议开启。
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-soft)' }}>
-          <input type="checkbox" style={{ width: 'auto' }} checked={!!tls}
-            onChange={toggleTls} disabled={busy} />
-          启用 HTTPS（webui.tls）
-        </label>
-        <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8 }}>
-          保存后需重启 WebUI：systemctl restart simvowifi-web（或重新运行 simvowifi web），然后用 https:// 打开。
-        </div>
-      </div>
-    </>
+      {show && <SipInfoModal onClose={() => setShow(false)} />}
+    </div>
   )
 }
 
@@ -179,50 +162,39 @@ function ConfigCard({ showToast }) {
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { api.config.get().then((r) => setYaml(r.yaml || '')).catch((e) => setMsg(e.message)) }, [])
+  React.useEffect(() => { api.config.get().then((r) => setYaml(r.yaml || '')).catch((e) => setMsg(e.message)) }, [])
 
   const save = async () => {
     setBusy(true); setMsg('')
-    try {
-      const r = await api.config.save(yaml)
-      setMsg(r.note || '已保存')
-      showToast('config.yaml 已保存')
-    } catch (e) { setMsg('保存失败：' + e.message) }
+    try { const r = await api.config.save(yaml); setMsg(r.note || '已保存'); showToast('config.yaml 已保存', 'success') }
+    catch (e) { setMsg('保存失败：' + e.message) }
     setBusy(false)
   }
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>config.yaml 编辑器</h3>
-      <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 10, lineHeight: 1.7 }}>
-        直接编辑配置（YAML，服务端校验）。engine 相关项重启后生效；line/bark 等修改建议先停 engine。
-      </div>
-      <textarea className="mono" value={yaml} onChange={(e) => { setYaml(e.target.value); setMsg('') }}
-        spellCheck={false} style={{ minHeight: 320, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre' }} />
-      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-        <button className="btn btn-primary" disabled={busy || !yaml.trim()} onClick={save}>{busy ? '保存中…' : '保存配置'}</button>
-        {msg && <span style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>{msg}</span>}
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(20,27,45,.8)', border: '1px solid #243049' }}>
+      <h3 className="text-sm font-semibold text-white mb-1">config.yaml 编辑器</h3>
+      <p className="text-xs text-slate-500 mb-3">直接编辑配置（YAML，服务端校验）。</p>
+      <textarea className="w-full min-h-[280px] px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700 text-xs text-slate-300 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+        value={yaml} onChange={(e) => { setYaml(e.target.value); setMsg('') }} spellCheck={false} />
+      <div className="flex gap-2 mt-3 items-center">
+        <button onClick={save} disabled={busy || !yaml.trim()}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+          <Save className="w-3.5 h-3.5" /> {busy ? '保存中…' : '保存配置'}
+        </button>
+        {msg && <span className="text-xs text-slate-500">{msg}</span>}
       </div>
     </div>
   )
 }
 
 export default function Settings({ showToast }) {
-  const [sipInfo, setSipInfo] = useState(false)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
-      <div className="card" style={{ padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Linphone / SIP 接入</h3>
-          <div style={{ fontSize: 12.5, color: 'var(--text-mute)', marginTop: 4 }}>手机 App 注册网关，接打电话/收发短信。</div>
-        </div>
-        <button className="btn btn-primary" onClick={() => setSipInfo(true)}>查看接入信息</button>
-      </div>
-
+    <div className="flex flex-col gap-4 max-w-3xl">
+      <SipInfoCard showToast={showToast} />
       <BarkCard showToast={showToast} />
-      <SoftphoneCard showToast={showToast} />
       <ConfigCard showToast={showToast} />
-      {sipInfo && <SipInfoModal onClose={() => setSipInfo(false)} />}
     </div>
   )
 }
