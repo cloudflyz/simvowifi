@@ -1,0 +1,102 @@
+name: images
+
+# 构建并推送两个镜像到 GitHub Container Registry：
+#   ghcr.io/cloudflyz/simvowifi-engine
+#   ghcr.io/cloudflyz/simvowifi-webui
+#
+# 触发：
+#   * 打 tag（v1.2.3）→ 推 v1.2.3 + latest
+#   * 手动 workflow_dispatch → 推 edge
+#   * push main → 推 edge（方便自用随时拉最新）
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      tags_engine: ${{ steps.meta_engine.outputs.tags }}
+      tags_webui: ${{ steps.meta_webui.outputs.tags }}
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=edge" >> "$GITHUB_OUTPUT"
+          fi
+      - id: meta_engine
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/simvowifi-engine
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=edge,enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
+      - id: meta_webui
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/simvowifi-webui
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=edge,enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+  webui:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./ctl
+          push: true
+          tags: ${{ needs.meta.outputs.tags_webui }}
+          labels: ${{ needs.meta.outputs.tags_webui }}
+          cache-from: type=gha,scope=webui
+          cache-to: type=gha,mode=max,scope=webui
+
+  engine:
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # 引擎镜像要从源码编译 sysmocom Asterisk（10–40 分钟），用 GHA 缓存保住层。
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./engine
+          push: true
+          tags: ${{ needs.meta.outputs.tags_engine }}
+          labels: ${{ needs.meta.outputs.tags_engine }}
+          cache-from: type=gha,scope=engine
+          cache-to: type=gha,mode=max,scope=engine
+
+  # 公开仓库时把包设为 public（GHCR 默认私有）。仓库 public + 包 public 才能匿名拉取。
+  # 首次发布后手动改一次即可：Package settings → Change visibility → Public。

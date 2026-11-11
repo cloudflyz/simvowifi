@@ -12,3 +12,10 @@ __pycache__/
 .idea/
 .vscode/
 .DS_Store
+
+# 内部文档（含内网拓扑与部署细节，不对外）
+docs/PLAN-*.md
+SELF-CHECK-REPORT.md
+
+# 本地环境变量（含端口/目录，可能含私密信息）
+.env

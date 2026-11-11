@@ -1,0 +1,20 @@
+# 本地构建覆盖层（开发用）
+#
+#   部署（拉 GHCR 镜像）：
+#     docker compose up -d
+#
+#   本地构建并起服务：
+#     docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# 两个镜像的构建成本差很多：webui 约 1 分钟，engine 要编译 Asterisk，10–40 分钟。
+
+services:
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+
+  webui:
+    build:
+      context: ./ctl
+      dockerfile: Dockerfile

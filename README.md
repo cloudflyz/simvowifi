@@ -55,6 +55,33 @@ simvowifi start && simvowifi status
 simvowifi linphone       # iOS 配置指引（账号/密码/服务器）
 ```
 
+## 部署方式二：直接用镜像（推荐）
+
+仓库已提供 GitHub Actions 构建的镜像，无需本地编译 Asterisk：
+
+```bash
+cp .env.example .env
+$EDITOR .env            # 可选：改端口/时区
+docker compose pull
+docker compose up -d
+```
+
+镜像地址：
+
+- `ghcr.io/cloudflyz/simvowifi-engine:latest`
+- `ghcr.io/cloudflyz/simvowifi-webui:latest`
+
+首次使用仍需初始化配置并读卡：
+
+```bash
+pip install -r ctl/requirements.txt
+export SIMVOWIFI_DATA=$PWD/data
+python -m app.webui --help    # 或用 CLT：bin/simvowifi init / provision
+```
+
+> 本地改代码后用 `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
+> 自行构建，不依赖 GHCR。
+
 ## 运维命令
 
 ```bash
@@ -97,6 +124,17 @@ simvowifi/
 Asterisk 使用 **[sysmocom](https://gitea.sysmocom.de/sysmocom/asterisk)** IMS 分支。
 整体以 **GPLv3** 发布，详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
 架构另参考 [MddIdd/mdd-sim-gateway](https://github.com/MddIdd/mdd-sim-gateway)。
+
+## 镜像与源码（GPL 合规）
+
+预构建镜像里的 Asterisk / pjproject 来自 sysmocom 上游（GPLv2），构建时由
+`engine/Dockerfile` 从 `gitea.sysmocom.de` 克隆固定分支编译，本仓库不包含其源码。
+对应源码获取方式：
+
+- 构建脚本与精确分支/提交：`engine/Dockerfile`
+- 上游仓库：<https://gitea.sysmocom.de/sysmocom/asterisk>（分支 `sysmocom/20.7.0`）、
+  <https://gitea.sysmocom.de/sysmocom/pjproject>（分支 `sysmocom/2.14`）
+- 本仓库其余部分：GPLv3，见 `LICENSE`
 
 ## ⚠️ 合规提示
 

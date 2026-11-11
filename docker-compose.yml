@@ -1,10 +1,22 @@
-# simvowifi engine — 单线路
-# 数据目录默认 ./data，可用环境变量 SIMVOWIFI_DATA_DIR 覆盖（绝对路径）
+# simvowifi 单栈部署：engine（ePDG 隧道 + Asterisk IMS）+ webui（Flask 管理界面）
+#
+#   cp .env.example .env      # 按需改端口/时区/数据目录
+#   docker compose up -d      # 一条命令起整套
+#   docker compose logs -f    # 看日志
+#
+# 设计说明：
+#   * 两个服务都用 host 网络 —— AMI(127.0.0.1:5038)、SIP(5060)、WSS(8089)、RTP 直接落宿主，
+#     webui 也能通过 127.0.0.1 控制 engine，不引入额外的 compose 内网。
+#   * 读卡器走宿主 pcscd（/run/pcscd 套接字），引擎和 webui 都挂载同一个套接字。
+#   * webui 通过 docker.sock 调 `docker compose` 管理 engine（原设计如此），因此挂载
+#     /var/run/docker.sock 与整个项目目录。
+
 services:
   engine:
-    image: simvowifi/engine:latest
+    image: ${SIMVOWIFI_ENGINE_IMAGE:-ghcr.io/cloudflyz/simvowifi-engine:latest}
     container_name: simvowifi-engine
     restart: unless-stopped
+    network_mode: host
     cap_add:
       - NET_ADMIN
     devices:
@@ -15,13 +27,51 @@ services:
       - ${SIMVOWIFI_DATA_DIR:-./data}/run:/run/vowifi
       - ${SIMVOWIFI_DATA_DIR:-./data}/certs/certificate.crt:/etc/asterisk/certificate.crt:ro
       - ${SIMVOWIFI_DATA_DIR:-./data}/certs/certificate.key:/etc/asterisk/certificate.key:ro
-      - /run/pcscd:/run/pcscd    # 宿主机 pcscd 套接字（读卡器）
-    ports:
-      # Linphone / SIP 客户端
-      - "5060:5060/udp"           # UDP 传输（默认）
-      - "5060:5060/tcp"           # TCP 传输（可选）
-      - "5061:5061/tcp"           # TLS 传输（可选）
-      - "8089:8089/tcp"           # WebRTC over WSS（浏览器软电话；sip.webrtc.enable 时才监听）
-      - "127.0.0.1:5038:5038/tcp" # AMI（仅本机 CLI 用，不暴露局域网）
-      # RTP 媒体（与 ports.rtp_start/rtp_span 对应）
-      - "10000-10059:10000-10059/udp"
+      - /run/pcscd:/run/pcscd
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f swu_ike.py >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  webui:
+    image: ${SIMVOWIFI_WEBUI_IMAGE:-ghcr.io/cloudflyz/simvowifi-webui:latest}
+    pull_policy: missing
+    container_name: simvowifi-webui
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      engine:
+        condition: service_started
+    volumes:
+      # 项目目录整体挂进来：WebUI 需要 docker-compose.yml 才能控制 engine
+      - .:/repo
+      - ${SIMVOWIFI_DATA_DIR:-./data}:/repo/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/pcscd:/run/pcscd
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SIMVOWIFI_DATA: /repo/data
+      SIMVOWIFI_ENGINE_IMAGE: ${SIMVOWIFI_ENGINE_IMAGE:-simvowifi/engine:latest}
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "-m", "app.webui", "--host", "0.0.0.0", "--port", "${WEBUI_PORT:-8081}"]
+    working_dir: /repo/ctl
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.create_connection(('127.0.0.1', ${WEBUI_PORT:-8081}), 2); s.close()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
