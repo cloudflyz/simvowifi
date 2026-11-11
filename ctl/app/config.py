@@ -89,6 +89,11 @@ def default_config() -> dict:
             "sip_udp": 5060, "sip_tls": 5061,
             "ami": 5038, "rtp_start": 10000, "rtp_span": 60,
         },
+        "esim": {
+            "lpac_bin": "",            # 空 = 用镜像内 /usr/local/bin/lpac
+            "download_timeout": 300,
+            "auto_process_notifications": True,
+        },
         "debug": {"asterisk": True},
     }
 

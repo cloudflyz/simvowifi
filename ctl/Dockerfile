@@ -9,7 +9,24 @@ COPY --from=docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential swig libpcsclite-dev libpcsclite1 openssl ca-certificates \
+      curl unzip \
  && rm -rf /var/lib/apt/lists/*
+
+# lpac（eSIM/eUICC 管理，ES9+/ES10）——官方静态发布包，按构建架构选
+ARG LPAC_VERSION=2.3.0
+ARG TARGETARCH=amd64
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64) LPAC_ARCH=x86_64 ;; \
+      arm64) LPAC_ARCH=aarch64 ;; \
+      *) echo "unsupported arch: $TARGETARCH"; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/lpac.zip \
+      "https://github.com/estkme-group/lpac/releases/download/v${LPAC_VERSION}/lpac-linux-${LPAC_ARCH}.zip"; \
+    unzip -o /tmp/lpac.zip -d /usr/local/bin; \
+    chmod +x /usr/local/bin/lpac; \
+    rm -f /tmp/lpac.zip; \
+    lpac version || true
 
 WORKDIR /repo/ctl
 

@@ -76,3 +76,8 @@ ports:
 
 debug:
   asterisk: true
+
+esim:
+  lpac_bin: ""                        # 空 = 用镜像内 /usr/local/bin/lpac
+  download_timeout: 300               # 下载 profile 超时（秒）
+  auto_process_notifications: true    # profile 变更后自动投递 SGP.22 通知

@@ -623,6 +623,79 @@ def create_app() -> Flask:
             realm="sip." + (_realm() or ""),
         )
 
+    # -------- eSIM / eUICC（lpac） --------
+    @app.get("/api/esim")
+    def esim_state():
+        from . import esim as esimmod
+        from . import lpa as lpamod
+        idx = int(request.args.get("reader", 0))
+        try:
+            return jsonify(esimmod.state(idx))
+        except lpamod.LpaError as e:
+            return jsonify(available=lpamod.lpac_available(), ses=[], dual=False,
+                           error=e.user_message()), 400
+        except Exception as e:  # noqa
+            return jsonify(available=False, ses=[], dual=False, error=repr(e)), 500
+
+    @app.post("/api/esim/profile")
+    def esim_profile():
+        from . import esim as esimmod
+        from . import lpa as lpamod
+        b = request.get_json(silent=True) or {}
+        try:
+            return jsonify(esimmod.profile_action(
+                int(b.get("reader", 0)), str(b.get("iccid") or ""),
+                str(b.get("action") or ""), aid=b.get("aid") or None,
+                nickname=b.get("nickname") or None))
+        except lpamod.LpaError as e:
+            return jsonify(ok=False, error=e.user_message()), 400
+        except Exception as e:  # noqa
+            return jsonify(ok=False, error=repr(e)), 500
+
+    @app.post("/api/esim/download")
+    def esim_download():
+        from . import esim as esimmod
+        from . import lpa as lpamod
+        b = request.get_json(silent=True) or {}
+        try:
+            return jsonify(esimmod.download(
+                int(b.get("reader", 0)),
+                activation_code=(b.get("activation_code") or "").strip() or None,
+                smdp=(b.get("smdp") or "").strip() or None,
+                matching_id=(b.get("matching_id") or "").strip() or None,
+                confirmation_code=(b.get("confirmation_code") or "").strip() or None,
+                imei=(b.get("imei") or "").strip() or None,
+                aid=b.get("aid") or None))
+        except lpamod.LpaError as e:
+            return jsonify(ok=False, error=e.user_message()), 400
+        except Exception as e:  # noqa
+            return jsonify(ok=False, error=repr(e)), 500
+
+    @app.get("/api/esim/notifications")
+    def esim_notifications():
+        from . import esim as esimmod
+        from . import lpa as lpamod
+        try:
+            return jsonify(esimmod.notifications(
+                int(request.args.get("reader", 0)), process=False,
+                aid=request.args.get("aid") or None))
+        except lpamod.LpaError as e:
+            return jsonify(ok=False, error=e.user_message()), 400
+
+    @app.post("/api/esim/notifications/process")
+    def esim_notifications_process():
+        from . import esim as esimmod
+        from . import lpa as lpamod
+        b = request.get_json(silent=True) or {}
+        seq = b.get("seq")
+        try:
+            return jsonify(esimmod.notifications(
+                int(b.get("reader", 0)), process=True,
+                seq=int(seq) if seq not in (None, "") else None,
+                aid=b.get("aid") or None))
+        except lpamod.LpaError as e:
+            return jsonify(ok=False, error=e.user_message()), 400
+
     return app
 
 
