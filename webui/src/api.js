@@ -55,6 +55,15 @@ export const api = {
     setPinEnabled: (pin, enabled, reader = 0) => j('POST', '/api/sim/pin_enabled', { pin, enabled, reader }),
   },
 
+  esim: {
+    state: (reader = 0) => j('GET', `/api/esim?reader=${reader}`),
+    profile: (body) => j('POST', '/api/esim/profile', body),
+    download: (body) => j('POST', '/api/esim/download', body),
+    notifications: (reader = 0, aid) => j('GET',
+      `/api/esim/notifications?reader=${reader}` + (aid ? `&aid=${aid}` : '')),
+    processNotifications: (body) => j('POST', '/api/esim/notifications/process', body),
+  },
+
   bark: {
     test: () => j('POST', '/api/bark_test'),
     get: () => j('GET', '/api/bark_settings'),

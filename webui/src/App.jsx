@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   LayoutDashboard, MessageSquare, Phone, CardSim, Settings, ScrollText,
-  Sun, Moon, Monitor, LogOut, Wifi, Bell
+  Smartphone, Sun, Moon, Monitor, LogOut, Wifi, Bell
 } from 'lucide-react'
 import { api, setUnauthorizedHandler } from './api.js'
 import Login from './views/Login.jsx'
@@ -11,19 +11,21 @@ import Messages from './views/Messages.jsx'
 import Provision from './views/Provision.jsx'
 import SettingsView from './views/Settings.jsx'
 import Logs from './views/Logs.jsx'
+import Esim from './views/Esim.jsx'
 
 const NAV = [
   { key: 'dashboard', label: '总览',     icon: LayoutDashboard },
   { key: 'messages',  label: '短信',     icon: MessageSquare },
   { key: 'softphone', label: '软电话',   icon: Phone },
   { key: 'provision', label: 'SIM 开通', icon: CardSim },
+  { key: 'esim',      label: 'eSIM',    icon: Smartphone },
   { key: 'settings',  label: '设置',     icon: Settings },
   { key: 'logs',      label: '日志',     icon: ScrollText },
 ]
 
 const TITLES = {
   dashboard: '总览', messages: '短信', softphone: '软电话',
-  provision: 'SIM 开通', settings: '设置', logs: '日志',
+  provision: 'SIM 开通', esim: 'eSIM', settings: '设置', logs: '日志',
 }
 
 const EVENT_LABELS = {
@@ -99,7 +101,7 @@ export default function App() {
   )
   if (authed === false) return <Login onOk={() => { setAuthed(true); setOverview(null) }} showToast={showToast} />
 
-  const View = { dashboard: Dashboard, softphone: Softphone, messages: Messages, provision: Provision, settings: SettingsView, logs: Logs }[view]
+  const View = { dashboard: Dashboard, softphone: Softphone, messages: Messages, provision: Provision, esim: Esim, settings: SettingsView, logs: Logs }[view]
 
   const logout = async () => {
     try { await api.logout() } catch {}
